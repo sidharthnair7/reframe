@@ -16,10 +16,6 @@ public class Stage1TriageService {
     private final ClaudeClient claudeClient;
     private final ObjectMapper objectMapper;
 
-    public Stage1TriageService(ClaudeClient claudeClient, ObjectMapper objectMapper) {
-        this.claudeClient = claudeClient;
-        this.objectMapper = objectMapper;
-    }
 
     private static final String SYSTEM_PROMPT = """
         You are an expert at emotional and cognitive triage.
