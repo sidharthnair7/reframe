@@ -31,15 +31,13 @@ public class IssueNode {
     private int cognitiveWeight;
     private String actionability;
     private String category;
-    // Stage 2 — Hidden Assumptions
     private List<String> hiddenAssumptions;
 
-    // Stage 4 — Priority Scoring
     private double priorityScore;
     private double confidenceInterval;
     private String priorityReasoning;
 
-    // Stage 5 — Action Plan
+
     private ActionPlan actionPlan;
 
 
