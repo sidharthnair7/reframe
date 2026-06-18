@@ -4,10 +4,10 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import projectCP.config.JwtService;
-import projectCP.user.Role;
-import projectCP.user.User;
-import projectCP.user.UserRepository;
+import fileidea.reframe.config.JwtService;
+import fileidea.reframe.user.Role;
+import fileidea.reframe.user.User;
+import fileidea.reframe.user.UserRepository;
 
 @Service
 public class AuthenticationService {
@@ -30,9 +30,10 @@ public class AuthenticationService {
             throw new Exception("Email already registered. Please log in instead.");
         }
 
+        String displayName = (request.getFirstName() != null ? request.getFirstName() : "")
+                + (request.getLastName() != null ? " " + request.getLastName() : "");
         var user= User.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
+                .displayName(displayName.trim())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.USER)

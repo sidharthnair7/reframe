@@ -51,13 +51,6 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/editor/**").permitAll()
-                        .requestMatchers("/app/**").permitAll()
-                        .requestMatchers("/topic/**").permitAll()
-                        .requestMatchers("/api/v1/code/**").authenticated()
-                        .requestMatchers("/api/v1/workspace/**").authenticated()
-                        .requestMatchers("/api/v1/files/**").authenticated()
-
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
