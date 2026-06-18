@@ -9,6 +9,6 @@ import lombok.*;
 @AllArgsConstructor
 public class VoiceExchangeResponse {
     private String spokenResponse;
-    private boolean readyToAnalyze;
-    private String compiledText;
+    private boolean topicComplete;
+    private String topicText;
 }

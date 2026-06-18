@@ -94,6 +94,19 @@ public class BrainDumpService {
         }
     }
 
+    public List<BrainDumpHistoryResponse> getHistory(String userId) {
+        return brainDumpRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(dump -> BrainDumpHistoryResponse.builder()
+                        .sessionId(dump.getSessionId())
+                        .status(dump.getStatus())
+                        .rawText(dump.getRawText())
+                        .createdAt(dump.getCreatedAt())
+                        .issueCount(issueNodeRepository.countBySessionId(dump.getSessionId()))
+                        .build())
+                .toList();
+    }
+
     private String buildSummary(List<IssueNode> nodes) {
         return "Identified " + nodes.size() + " issue(s) and built a prioritized action plan.";
     }

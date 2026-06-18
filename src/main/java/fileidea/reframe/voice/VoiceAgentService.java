@@ -16,71 +16,58 @@ public class VoiceAgentService {
     private final ClaudeClient claudeClient;
     private final ObjectMapper objectMapper;
     private static final String SYSTEM_PROMPT = """
-        You are a calm, warm AI companion helping someone who feels overwhelmed.
-        The user is talking out loud about what's on their mind.
+        You are a warm AI companion helping someone vent. Your ONLY job is to capture topics fast.
 
-        Your job in this exchange:
-        1. Briefly acknowledge what they just said with genuine warmth — one sentence max
-        2. Ask ONE clarifying follow-up question to understand their situation better
-        3. Do NOT give advice yet — you are only listening and gathering context
+        STRICT FLOW — follow exactly:
+        Turn 1 on a topic: acknowledge in ONE sentence + ask ONE practical clarifying question.
+        Turn 2 on a topic: ALWAYS set topicComplete=true. Do NOT ask another question. You have enough.
 
-        After 2-3 exchanges, once you have enough detail about their main stressors,
-        respond instead with a closing line like "I think I have a good picture now — let's break this down,"
-        and set readyToAnalyze to true.
+        When topicComplete=true:
+        - spokenResponse: one warm closing sentence ONLY, e.g. "Got it, I've noted that." Do NOT ask what else is on their mind.
+        - topicText: 1-3 sentences summarizing what the user said, written in first person.
+
+        NEVER:
+        - Ask more than ONE follow-up question on any topic
+        - Ask deep emotional questions ("how does that feel?", "what does that feel like in your body?")
+        - Wait for perfect information — a rough summary is always fine
 
         Return ONLY valid JSON, no markdown, no backticks:
         {
-          "spokenResponse": "what you say out loud to the user",
-          "readyToAnalyze": <true or false>
+          "spokenResponse": "...",
+          "topicComplete": <true or false>,
+          "topicText": "<only when topicComplete=true>"
         }
         """;
+
     public VoiceExchangeResponse exchange(VoiceExchangeRequest request) {
         String conversationContext = request.getHistory() != null
                 ? request.getHistory().stream()
-                .map(turn -> turn.getRole() + ": " + turn.getContent())
-                .collect(Collectors.joining("\n"))
+                        .map(turn -> turn.getRole() + ": " + turn.getContent())
+                        .collect(Collectors.joining("\n"))
                 : "";
 
         String userMessage = conversationContext.isEmpty()
                 ? "The user just said: \"" + request.getTranscript() + "\""
                 : "Conversation so far:\n" + conversationContext +
-                "\n\nThe user just said: \"" + request.getTranscript() + "\"";
+                  "\n\nThe user just said: \"" + request.getTranscript() + "\"";
 
-        String response= claudeClient.call(SYSTEM_PROMPT, userMessage);
+        String response = claudeClient.call(SYSTEM_PROMPT, userMessage);
 
         try {
-            ExchangeDto   exchangeDto = objectMapper.readValue(response, ExchangeDto.class);
-
-            String compiledText = exchangeDto.readyToAnalyze()
-                    ? buildCompiledText(request)
-                    : null;
-
+            ExchangeDto dto = objectMapper.readValue(response, ExchangeDto.class);
             return VoiceExchangeResponse.builder()
-                    .spokenResponse(exchangeDto.spokenResponse())
-                    .readyToAnalyze(exchangeDto.readyToAnalyze())
-                    .compiledText(compiledText)
+                    .spokenResponse(dto.spokenResponse())
+                    .topicComplete(dto.topicComplete())
+                    .topicText(dto.topicText())
                     .build();
         } catch (Exception e) {
             return VoiceExchangeResponse.builder()
-                    .spokenResponse("Sorry, can you say that again?")
-                    .readyToAnalyze(false)
+                    .spokenResponse("Sorry, could you say that again?")
+                    .topicComplete(false)
                     .build();
         }
-
-    }
-    private String buildCompiledText(VoiceExchangeRequest request) {
-        StringBuilder sb = new StringBuilder();
-        if (request.getHistory() != null) {
-            request.getHistory().stream()
-                    .filter(t -> t.getRole().equals("user"))
-                    .forEach(t -> sb.append(t.getContent()).append(". "));
-        }
-        sb.append(request.getTranscript());
-        return sb.toString();
     }
 
-
-
-    private record ExchangeDto(String spokenResponse, boolean readyToAnalyze) {}
+    private record ExchangeDto(String spokenResponse, boolean topicComplete, String topicText) {}
 
 }

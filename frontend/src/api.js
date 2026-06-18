@@ -56,3 +56,11 @@ export async function voiceExchange({ transcript, history }) {
 export async function getGraph(sessionId) {
   return request(`/graph/${sessionId}`);
 }
+
+export async function getHistory() {
+  return request("/braindump/history");
+}
+
+export async function getSession(sessionId) {
+  return request(`/graph/${sessionId}`);
+}

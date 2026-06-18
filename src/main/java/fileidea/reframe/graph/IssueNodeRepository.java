@@ -7,5 +7,6 @@ import java.util.List;
 public interface IssueNodeRepository extends MongoRepository<IssueNode,String> {
     List<IssueNode> findBySessionId(String sessionId);
     List<IssueNode> findByUserId(String userId);
+    int countBySessionId(String sessionId);
 
 }

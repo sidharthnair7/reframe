@@ -25,7 +25,7 @@ public class VoiceController {
 
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                .header(HttpHeaders.CONTENT_TYPE, "audio/mpeg")
                 .body(audio);
     }
 

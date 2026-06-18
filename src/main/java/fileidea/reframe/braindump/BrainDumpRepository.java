@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface BrainDumpRepository extends MongoRepository<BrainDump, String> {
     Optional<BrainDump> findBySessionId(String sessionId);
     List<BrainDump> findByUserId(String userId);
+    List<BrainDump> findByUserIdOrderByCreatedAtDesc(String userId);
 }

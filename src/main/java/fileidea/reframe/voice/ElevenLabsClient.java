@@ -25,12 +25,15 @@ public class ElevenLabsClient {
         return webClient.post()
                 .uri("/text-to-speech/{voiceId}", voiceId)
                 .header("xi-api-key", apiKey)
+                .header("Content-Type", "application/json")
                 .bodyValue(java.util.Map.of(
                         "text", text,
-                        "model_id", "eleven_turbo_v2",
+                        "model_id", "eleven_multilingual_v2",
                         "voice_settings", java.util.Map.of(
-                                "stability", 0.5,
-                                "similarity_boost", 0.75
+                                "stability",        0.35,   // lower = more expressive/emotional
+                                "similarity_boost", 0.80,   // how closely it matches the original voice
+                                "style",            0.45,   // style exaggeration — adds emotional colour
+                                "use_speaker_boost", true   // enhanced clarity and presence
                         )
                 ))
                 .retrieve()
