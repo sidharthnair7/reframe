@@ -14,4 +14,5 @@ import java.util.List;
 public class VoiceExchangeRequest {
     private String transcript;
     private List<ConversationTurn> history;
+    private String speakerName;
 }

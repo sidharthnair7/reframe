@@ -46,10 +46,14 @@ public class VoiceAgentService {
                         .collect(Collectors.joining("\n"))
                 : "";
 
-        String userMessage = conversationContext.isEmpty()
+        String speakerContext = (request.getSpeakerName() != null && !request.getSpeakerName().isBlank())
+                ? "The speaker's name is \"" + request.getSpeakerName() + "\" -- if they mention their own name, spell it exactly this way.\n\n"
+                : "";
+
+        String userMessage = speakerContext + (conversationContext.isEmpty()
                 ? "The user just said: \"" + request.getTranscript() + "\""
                 : "Conversation so far:\n" + conversationContext +
-                  "\n\nThe user just said: \"" + request.getTranscript() + "\"";
+                  "\n\nThe user just said: \"" + request.getTranscript() + "\"");
 
         String response = claudeClient.call(SYSTEM_PROMPT, userMessage);
 
