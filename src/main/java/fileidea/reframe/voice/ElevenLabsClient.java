@@ -3,6 +3,9 @@ package fileidea.reframe.voice;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.util.retry.Retry;
+
+import java.time.Duration;
 
 @Component
 public class ElevenLabsClient {
@@ -38,6 +41,7 @@ public class ElevenLabsClient {
                 ))
                 .retrieve()
                 .bodyToMono(byte[].class)
+                .retryWhen(Retry.backoff(2, Duration.ofMillis(300)))
                 .block();
     }
 }

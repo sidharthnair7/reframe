@@ -192,8 +192,9 @@ class Sphere3DMenu {
     this.locs={pos:loc('aModelPosition'),uvs:loc('aModelUvs'),inst:loc('aInstanceMatrix'),uWorld:uloc('uWorldMatrix'),uView:uloc('uViewMatrix'),uProj:uloc('uProjectionMatrix'),uCam:uloc('uCameraPosition'),uRav:uloc('uRotationAxisVelocity'),uTex:uloc('uTex'),uFrames:uloc('uFrames'),uCount:uloc('uItemCount'),uAtlas:uloc('uAtlasSize'),uScale:uloc('uScaleFactor')};
     const dg=new DiscGeometry(56,1);this.disc=dg.data;
     this.vao=mkVAO(gl,[[mkBuf(gl,this.disc.vertices,gl.STATIC_DRAW),this.locs.pos,3],[mkBuf(gl,this.disc.uvs,gl.STATIC_DRAW),this.locs.uvs,2]],this.disc.indices);
-    const ico=new IcosahedronGeometry();ico.subdivide(1).spherize(this.SR);
-    this.instPos=ico.vertices.map(v=>v.position);this.instCount=ico.vertices.length;
+    const subDiv=this.items.length<=12?0:this.items.length<=42?1:2;
+    const ico=new IcosahedronGeometry();ico.subdivide(subDiv).spherize(this.SR);
+    this.instPos=ico.vertices.map(v=>v.position);this.instCount=Math.min(ico.vertices.length,Math.max(this.items.length,1));
     this._initInst();this.world=mat4.create();this._initTex();
     this.arc=new Arcball(this.canvas,dt=>this._onCtrl(dt));
     this._updateCam();this._updateProj(gl);this.resize();if(onInit)onInit(this);
@@ -222,7 +223,7 @@ class Sphere3DMenu {
   }
   _anim(dt){
     const gl=this.gl;this.arc.update(dt,this.TFD);
-    const positions=this.instPos.map(p=>vec3.transformQuat(vec3.create(),p,this.arc.orientation));
+    const positions=this.instPos.slice(0,this.instCount).map(p=>vec3.transformQuat(vec3.create(),p,this.arc.orientation));
     positions.forEach((p,ndx)=>{
       const s=(Math.abs(p[2])/this.SR)*.6+.4,fs=s*.25,m=mat4.create();
       mat4.multiply(m,m,mat4.fromTranslation(mat4.create(),vec3.negate(vec3.create(),p)));
@@ -243,7 +244,7 @@ class Sphere3DMenu {
     gl.uniform1i(this.locs.uCount,this.items.length);gl.uniform1i(this.locs.uAtlas,this.atlasSize);
     gl.uniform1f(this.locs.uFrames,this.#f);gl.uniform1f(this.locs.uScale,this.scale);
     gl.uniform1i(this.locs.uTex,0);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.tex);
-    gl.bindVertexArray(this.vao);gl.drawElementsInstanced(gl.TRIANGLES,this.disc.indices.length,gl.UNSIGNED_SHORT,0,this.instCount);
+    gl.bindVertexArray(this.vao);gl.drawElementsInstanced(gl.TRIANGLES,this.disc.indices.length,gl.UNSIGNED_SHORT,0,this.items.length>0?Math.min(this.instCount,this.items.length):0);
   }
   _updateCam(){mat4.targetTo(this.cam.matrix,this.cam.pos,[0,0,0],this.cam.up);mat4.invert(this.cam.view,this.cam.matrix);}
   _updateProj(gl){
@@ -263,7 +264,7 @@ class Sphere3DMenu {
   }
   _nearest(){
     const n=this.arc.snapDirection,inv=quat.conjugate(quat.create(),this.arc.orientation),nt=vec3.transformQuat(vec3.create(),n,inv);
-    let max=-1,best=0;for(let i=0;i<this.instPos.length;++i){const d=vec3.dot(nt,this.instPos[i]);if(d>max){max=d;best=i;}}
+    let max=-1,best=0;for(let i=0;i<this.instCount;++i){const d=vec3.dot(nt,this.instPos[i]);if(d>max){max=d;best=i;}}
     return best;
   }
 }
@@ -296,13 +297,9 @@ export default function InfiniteMenu({ items = [], scale = 2.8, onItemClick }) {
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <canvas id="infinite-grid-menu-canvas" ref={canvasRef} />
       {activeItem && (
-        <>
-          <h2 className={`face-title ${isMoving ? 'inactive' : 'active'}`}>{activeItem.title}</h2>
-          <p className={`face-description ${isMoving ? 'inactive' : 'active'}`}>{activeItem.description}</p>
-          <div onClick={handleClick} className={`action-button ${isMoving ? 'inactive' : 'active'}`}>
-            <p className="action-button-icon">&#x2197;</p>
-          </div>
-        </>
+        <div onClick={handleClick} className={`action-button ${isMoving ? 'inactive' : 'active'}`}>
+          <p className="action-button-icon">&#x2197;</p>
+        </div>
       )}
     </div>
   );

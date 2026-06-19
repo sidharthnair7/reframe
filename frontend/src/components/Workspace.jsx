@@ -4,14 +4,24 @@ import { useAuth } from "../context/AuthContext";
 import { analyzeBrainDump, voiceExchange } from "../api";
 import InfiniteMenu from "./InfiniteMenu";
 import MemoryGarden from "./MemoryGarden";
+import BorderGlow from "./BorderGlow";
 import "../styles/workspace.css";
+
+function effectiveScore(node) {
+  return node.priorityScore > 0 ? node.priorityScore : (node.urgency + node.cognitiveWeight) * 5;
+}
+
+function priorityHue(node) {
+  const score = effectiveScore(node);
+  return score > 70 ? 5 : score > 50 ? 28 : 175;
+}
 
 function makeThumbnail(node) {
   const c = document.createElement("canvas");
   c.width = 512; c.height = 512;
   const ctx = c.getContext("2d");
-  const score = node.priorityScore > 0 ? node.priorityScore : (node.urgency + node.cognitiveWeight) * 5;
-  const hue = score > 70 ? 5 : score > 50 ? 28 : 175;
+  const score = effectiveScore(node);
+  const hue = priorityHue(node);
   const bg = ctx.createRadialGradient(256, 256, 0, 256, 256, 300);
   bg.addColorStop(0, `hsl(${hue},65%,12%)`); bg.addColorStop(1, `hsl(${hue},45%,4%)`);
   ctx.fillStyle = bg; ctx.fillRect(0, 0, 512, 512);
@@ -20,16 +30,16 @@ function makeThumbnail(node) {
   ctx.beginPath(); ctx.arc(256, 210, 130, -Math.PI * 0.75, -Math.PI * 0.75 + frac * Math.PI * 1.5); ctx.stroke();
   ctx.fillStyle = "#fff"; ctx.font = "bold 96px system-ui,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillText(score.toFixed(0), 256, 210);
-  ctx.font = "bold 34px system-ui,sans-serif"; ctx.fillStyle = `hsl(${hue},80%,70%)`;
-  ctx.fillText(node.category ?? "", 256, 325);
-  ctx.font = "22px system-ui,sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)";
-  const words = (node.text ?? "").split(" "); let line = "", y = 375;
+  ctx.font = "600 24px system-ui,sans-serif"; ctx.fillStyle = `hsl(${hue},60%,62%)`;
+  ctx.fillText(node.category ?? "", 256, 318);
+  ctx.font = "600 27px system-ui,sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.88)";
+  const words = (node.text ?? "").split(" "); let line = "", y = 368;
   for (const w of words) {
     const test = line + w + " ";
-    if (ctx.measureText(test).width > 380 && line) { ctx.fillText(line.trim(), 256, y); line = w + " "; y += 28; if (y > 450) break; }
+    if (ctx.measureText(test).width > 400 && line) { ctx.fillText(line.trim(), 256, y); line = w + " "; y += 33; if (y > 465) break; }
     else line = test;
   }
-  ctx.fillText(line.trim(), 256, Math.min(y, 450));
+  ctx.fillText(line.trim(), 256, Math.min(y, 465));
   return c.toDataURL("image/jpeg", 0.88);
 }
 
@@ -41,6 +51,7 @@ function deduplicateIssues(issues) {
     return common / Math.max(aW.size, bW.size, 1);
   };
   const result = [];
+  const idRemap = {};
   for (const issue of issues) {
     const dupIdx = result.findIndex(existing => {
       const sameCat = existing.category && existing.category === issue.category;
@@ -50,17 +61,29 @@ function deduplicateIssues(issues) {
     if (dupIdx >= 0) {
       const ex = result[dupIdx];
       const useNew = (issue.priorityScore ?? 0) > (ex.priorityScore ?? 0);
-      result[dupIdx] = {
+      const merged = {
         ...(useNew ? issue : ex),
         urgency: Math.max(ex.urgency ?? 0, issue.urgency ?? 0),
         cognitiveWeight: Math.max(ex.cognitiveWeight ?? 0, issue.cognitiveWeight ?? 0),
         priorityScore: Math.max(ex.priorityScore ?? 0, issue.priorityScore ?? 0),
       };
+      result[dupIdx] = merged;
+      const droppedId = useNew ? ex.id : issue.id;
+      if (droppedId) idRemap[droppedId] = merged.id;
     } else {
       result.push(issue);
     }
   }
-  return result;
+  return { issues: result, idRemap };
+}
+
+function resolveNodeId(id, remap) {
+  let current = id, seen = new Set();
+  while (remap[current] && !seen.has(current)) {
+    seen.add(current);
+    current = remap[current];
+  }
+  return current;
 }
 
 // Phonetic name correction — catches ASR mishearings like "Sedar Nair" → "Sidharth Nair"
@@ -161,6 +184,33 @@ function GalaxyBackground() {
     return()=>{cancelAnimationFrame(raf);window.removeEventListener("resize",resize);window.removeEventListener("mousemove",onMM);window.removeEventListener("mouseleave",onML);canvas.parentNode?.removeChild(canvas);};
   },[]);
   return <div id="ws-galaxy" ref={ref} />;
+}
+
+/* ── Ghost Sphere (idle preview of the issue sphere) ── */
+const GHOST_DOTS = [
+  [80,25,2,0], [50,40,2.5,0.4], [110,40,2.5,0.8], [28,65,3,1.2], [132,65,3,1.6],
+  [80,52,3.5,0.2], [22,95,3,2.0], [138,95,3,0.6], [80,80,4.5,0],
+  [32,118,3,1.4], [128,118,3,1.8], [80,105,3.5,1.0],
+  [55,138,2.5,0.3], [105,138,2.5,1.5], [80,150,2,0.9],
+];
+const GHOST_LINES = [
+  [80,25,50,40],[80,25,110,40],[50,40,28,65],[110,40,132,65],
+  [28,65,80,52],[132,65,80,52],[80,52,80,80],
+  [22,95,80,80],[138,95,80,80],[28,65,22,95],[132,65,138,95],
+  [80,80,32,118],[80,80,128,118],[80,80,80,105],
+  [32,118,55,138],[128,118,105,138],[55,138,80,150],[105,138,80,150],
+];
+function GhostSphere() {
+  return (
+    <svg viewBox="0 0 160 160" className="ghost-sphere" aria-hidden="true">
+      {GHOST_LINES.map(([x1,y1,x2,y2],i) => (
+        <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} className="ghost-line" />
+      ))}
+      {GHOST_DOTS.map(([cx,cy,r,delay],i) => (
+        <circle key={i} cx={cx} cy={cy} r={r} className="ghost-dot" style={{ animationDelay: `${delay}s` }} />
+      ))}
+    </svg>
+  );
 }
 
 /* ── Voice Hook ── */
@@ -339,11 +389,15 @@ export default function Workspace() {
           setResult(prev => {
             const prevIssues = prev?.issues ?? [];
             const prevEdges  = prev?.edges  ?? [];
-            const deduped = deduplicateIssues([...prevIssues, ...(data.issues ?? [])]);
+            const { issues: deduped, idRemap } = deduplicateIssues([...prevIssues, ...(data.issues ?? [])]);
+            const dedupedIds = new Set(deduped.map(n => n.id));
+            const mergedEdges = [...prevEdges, ...(data.edges ?? [])]
+              .map(e => ({ ...e, fromNodeId: resolveNodeId(e.fromNodeId, idRemap), toNodeId: resolveNodeId(e.toNodeId, idRemap) }))
+              .filter(e => e.fromNodeId !== e.toNodeId && dedupedIds.has(e.fromNodeId) && dedupedIds.has(e.toNodeId));
             return {
               ...data,
               issues:  deduped,
-              edges:   [...prevEdges, ...(data.edges ?? [])],
+              edges:   mergedEdges,
               summary: `${deduped.length} unique issue(s) captured across topics`,
             };
           });
@@ -429,12 +483,52 @@ export default function Workspace() {
 
   const [view, setView] = useState("workspace");
   const [selectedNode, setSelectedNode] = useState(null);
+  const [assumptionStatus, setAssumptionStatus] = useState({}); // `${nodeId}-${index}` -> "accurate" | "rejected"
+
+  const setAssumption = (nodeId, i, status) =>
+    setAssumptionStatus(prev => ({ ...prev, [`${nodeId}-${i}`]: status }));
+  const getAssumptionStatus = (nodeId, i) => assumptionStatus[`${nodeId}-${i}`];
+
+  // Confidence narrows as the user confirms/rejects assumptions — mirrors the backend's own
+  // assumptionCount > 2 ? 0.15 : 0.08 rule, just applied to the user-adjusted remaining count
+  function effectiveConfidence(node) {
+    const total = node.hiddenAssumptions?.length ?? 0;
+    if (total === 0) return node.confidenceInterval;
+    const rejected = node.hiddenAssumptions.filter((_, i) => getAssumptionStatus(node.id, i) === "rejected").length;
+    if (rejected === 0) return node.confidenceInterval;
+    return (total - rejected) > 2 ? 0.15 : 0.08;
+  }
 
   const issues = result?.issues ?? [];
   const edges  = result?.edges  ?? [];
 
   // Build id→text map for edge display
   const nodeMap = Object.fromEntries(issues.map(n => [n.id, n.text?.slice(0, 28) + "…"]));
+  const nodeMapFull = Object.fromEntries(issues.map(n => [n.id, n.text]));
+
+  // How many other issues each node BLOCKS — mirrors Stage4ScoringService's graph bonus logic
+  const blocksCountByNode = edges.reduce((acc, e) => {
+    if (e.type === "BLOCKS") acc[e.fromNodeId] = (acc[e.fromNodeId] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const topIssue = issues.length > 0
+    ? [...issues].sort((a, b) => effectiveScore(b) - effectiveScore(a))[0]
+    : null;
+
+  function badgeFor(node) {
+    if (!node) return null;
+    if (topIssue && node.id === topIssue.id) return "Top Priority";
+    const blocks = blocksCountByNode[node.id] ?? 0;
+    if (blocks >= 2) return "Root Cause";
+    if (blocks === 1) return "Blocker";
+    if (node.actionability === "ACTIONABLE") return "Quick Win";
+    return null;
+  }
+
+  function edgesFor(nodeId) {
+    return edges.filter(e => e.fromNodeId === nodeId || e.toNodeId === nodeId);
+  }
 
   // Generate canvas thumbnails once per issues list
   const menuItems = useMemo(() => issues.map(node => ({
@@ -498,22 +592,23 @@ export default function Workspace() {
               <button className="btn btn-primary" onClick={submit} disabled={loading || !displayInput.trim()}>
                 {loading ? "Processing…" : "Triage My Brain →"}
               </button>
+              <div className="input-or">or</div>
               <button
-                className={`btn-voice${listening ? " listening" : ""}`}
+                className={`btn btn-voice${listening ? " listening" : ""}`}
                 onClick={toggleVoice}
                 title={!supported ? "Voice not supported in this browser" : listening ? "Stop voice agent" : "Start voice agent"}
               >
-                {listening ? "⏹" : "🎙"}
+                {listening ? "⏹ Stop Listening" : "🎙 Talk It Out"}
               </button>
             </div>
             <div className="voice-hint">
               {listening ? (
                 <>
                   <div className="voice-bars">{[0,1,2,3,4].map(i => <div className="voice-bar" key={i} />)}</div>
-                  <span className="voice-text">Listening…</span>
+                  <span className="voice-text">Listening — Reframe will respond</span>
                 </>
               ) : (
-                <span className="idle-hint">⌘↩ to submit · 🎙 voice agent — speak freely</span>
+                <span className="idle-hint">⌘↩ to submit · talking starts a live conversation</span>
               )}
             </div>
             {error && (
@@ -550,7 +645,7 @@ export default function Workspace() {
                 <div className="stage-row" key={name}>
                   <div className={`stage-dot${done?" done":active?" active":""}`} />
                   <span className={`stage-name${done?" done":active?" active":""}`}>{name}</span>
-                  <span className={`stage-ticker${active?" active":""}`}>{tech}</span>
+                  <span className={`stage-ticker${done?" done":active?" active":""}`}>{tech}</span>
                 </div>
               );
             })}
@@ -577,7 +672,7 @@ export default function Workspace() {
             </div>
           ) : (
             <div className="center-empty">
-              <div className="center-icon">◈</div>
+              <GhostSphere />
               <div className="center-title">
                 {loading ? "Running 5-stage pipeline…" : "Awaiting your brain dump"}
               </div>
@@ -605,7 +700,7 @@ export default function Workspace() {
                 <div className={`status-dot ${dotClass}`} style={{ width: "4px", height: "4px" }} />
                 {mode === "PROCESSING" ? "5-Stage Pipeline Running" : mode === "DONE" ? "Analysis Complete" : mode === "LISTENING" ? "Voice Active" : "Cognitive Rendering Engine"}
               </div>
-              <div className="hud-meta">RAG · Bayesian · Claude Sonnet 4.6</div>
+              <div className="hud-meta">RAG · Bayesian </div>
             </div>
           </div>
         </div>
@@ -638,7 +733,62 @@ export default function Workspace() {
 
           {result && (
             <div className="right-scroll fade-up">
-              <div className="summary-card">
+              {topIssue && (
+                <div
+                  className="next-move-card"
+                  style={{ "--nm-hue": priorityHue(topIssue) }}
+                  onClick={() => setSelectedNode(topIssue)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedNode(topIssue); } }}
+                >
+                  <div className="next-move-head">
+                    <span className="next-move-label">Your Next Move</span>
+                    <span className="next-move-score">{effectiveScore(topIssue).toFixed(0)}</span>
+                  </div>
+                  <div className="next-move-text">{topIssue.text}</div>
+                  <div className="next-move-meta">
+                    <span className="next-move-chip">{topIssue.category ?? "Uncategorized"}</span>
+                    {topIssue.confidenceInterval != null && (
+                      <span className="next-move-chip">
+                        {effectiveScore(topIssue).toFixed(1)} ± {(effectiveConfidence(topIssue) * 100).toFixed(0)}%
+                      </span>
+                    )}
+                  </div>
+                  {(() => {
+                    const plan = topIssue.actionPlan && topIssue.actionPlan.framework !== "Unavailable" ? topIssue.actionPlan : null;
+                    const firstStep = plan?.steps?.[0];
+                    return firstStep ? (
+                      <div className="next-move-step">
+                        <span className="next-move-step-lbl">First step</span> {firstStep}
+                      </div>
+                    ) : (
+                      <div className="next-move-step next-move-step-empty">
+                        Open this issue for full reasoning and next steps.
+                      </div>
+                    );
+                  })()}
+                  <div className="next-move-footer">
+                    <span className="next-move-hitl">Reframe surfaced this — you decide what to act on.</span>
+                    <span className="next-move-cta">View full plan →</span>
+                  </div>
+                </div>
+              )}
+
+              {edges.length > 0 && (
+                <div className="summary-card">
+                  <div className="summary-head">Dependency Graph</div>
+                  {edges.slice(0, 8).map((e, i) => (
+                    <div className="graph-edge-item" key={i}>
+                      <div className="edge-from">{nodeMapFull[e.fromNodeId] ?? e.fromNodeId?.slice(0, 8)}</div>
+                      <div className="edge-type">{e.type === "BLOCKS" ? "↓ blocks" : e.type === "CAUSES" ? "↓ causes" : "↔ related"}</div>
+                      <div className="edge-to">{nodeMapFull[e.toNodeId] ?? e.toNodeId?.slice(0, 8)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="summary-card" style={{ marginTop: "0" }}>
                 <div className="summary-head">Session Summary</div>
                 <div className="summary-text">{result.summary}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem", marginTop: "0.75rem" }}>
@@ -669,19 +819,6 @@ export default function Workspace() {
                 </div>
               </div>
 
-              {edges.length > 0 && (
-                <div className="summary-card" style={{ marginTop: "0" }}>
-                  <div className="summary-head">Dependency Graph</div>
-                  {edges.slice(0, 8).map((e, i) => (
-                    <div className="graph-edge-item" key={i}>
-                      <span>{nodeMap[e.fromNodeId] ?? e.fromNodeId?.slice(0, 8)}</span>
-                      <span className="edge-type">{e.type === "BLOCKS" ? "→ blocks →" : e.type === "CAUSES" ? "→ causes →" : "↔"}</span>
-                      <span>{nodeMap[e.toNodeId] ?? e.toNodeId?.slice(0, 8)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
               <button
                 className="btn btn-primary"
                 style={{ width: "100%", justifyContent: "center", marginTop: "0.25rem" }}
@@ -696,36 +833,140 @@ export default function Workspace() {
         {/* ISSUE DETAIL MODAL */}
         {selectedNode && (
           <div className="issue-overlay" onClick={() => setSelectedNode(null)}>
-            <div className="issue-modal" onClick={e => e.stopPropagation()}>
-              <button className="issue-modal-close" onClick={() => setSelectedNode(null)}>✕</button>
-              <div className="issue-modal-cat">{selectedNode.category}</div>
-              <div className="issue-modal-text">{selectedNode.text}</div>
-              <div className="issue-modal-chips">
-                <span className="issue-chip">{selectedNode.actionability}</span>
-                <span className="issue-chip">Urgency {selectedNode.urgency}/10</span>
-                <span className="issue-chip">Weight {selectedNode.cognitiveWeight}/10</span>
-                {selectedNode.priorityScore > 0 && <span className="issue-chip">Score {selectedNode.priorityScore?.toFixed(1)}</span>}
-              </div>
-              {selectedNode.hiddenAssumptions?.length > 0 && (
-                <div className="issue-modal-section">
-                  <div className="issue-modal-sec-head">Hidden Assumptions</div>
-                  {selectedNode.hiddenAssumptions.map((a, i) => (
-                    <div key={i} className="issue-assumption">"{a}"</div>
-                  ))}
-                </div>
-              )}
-              {selectedNode.actionPlan && (
-                <div className="issue-modal-section">
-                  <div className="issue-modal-sec-head">Action Plan</div>
-                  {selectedNode.actionPlan.steps?.map((s, i) => (
-                    <div key={i} className="issue-step"><span className="issue-step-num">{i + 1}</span>{s}</div>
-                  ))}
-                  {selectedNode.actionPlan.timeframe && (
-                    <div className="issue-timeframe">⏱ {selectedNode.actionPlan.timeframe}</div>
+            <BorderGlow
+              className="issue-modal-glow-wrap"
+              glowColor={`${priorityHue(selectedNode)} 85 60`}
+              colors={[
+                `hsl(${priorityHue(selectedNode)}, 85%, 60%)`,
+                `hsl(${priorityHue(selectedNode)}, 55%, 30%)`,
+                "#818cf8",
+              ]}
+              backgroundColor="rgba(12,12,16,0.98)"
+              borderRadius={16}
+              glowRadius={28}
+              glowIntensity={1.3}
+              coneSpread={25}
+              edgeSensitivity={32}
+              animated
+            >
+              <div className="issue-modal" onClick={e => e.stopPropagation()}>
+                <button className="issue-modal-close" onClick={() => setSelectedNode(null)}>✕</button>
+                <div className="issue-modal-cat-row">
+                  <div className="issue-modal-cat">{selectedNode.category}</div>
+                  {badgeFor(selectedNode) && (
+                    <span className={`issue-badge issue-badge-${badgeFor(selectedNode).toLowerCase().replace(/\s+/g, "-")}`}>
+                      {badgeFor(selectedNode)}
+                    </span>
                   )}
                 </div>
-              )}
-            </div>
+                <div className="issue-modal-text">{selectedNode.text}</div>
+                <div className="issue-modal-chips">
+                  <span className="issue-chip">{selectedNode.actionability}</span>
+                  <span className="issue-chip">Urgency {selectedNode.urgency}/10</span>
+                  <span className="issue-chip">Weight {selectedNode.cognitiveWeight}/10</span>
+                  {selectedNode.priorityScore > 0 && (
+                    <span className="issue-chip">
+                      Score {selectedNode.priorityScore?.toFixed(1)}
+                      {selectedNode.confidenceInterval != null && ` ± ${(effectiveConfidence(selectedNode) * 100).toFixed(0)}%`}
+                    </span>
+                  )}
+                </div>
+
+                {(() => {
+                  const plan = selectedNode.actionPlan && selectedNode.actionPlan.framework !== "Unavailable" ? selectedNode.actionPlan : null;
+                  const firstStep = plan?.steps?.[0];
+                  return firstStep ? (
+                    <div className="issue-next-step">
+                      <span className="issue-next-step-lbl">Next step</span>
+                      <span>{firstStep}</span>
+                      {plan.timeEstimate && <span className="issue-next-step-time">⏱ {plan.timeEstimate}</span>}
+                    </div>
+                  ) : null;
+                })()}
+
+                {edgesFor(selectedNode.id).length > 0 && (
+                  <div className="issue-modal-section">
+                    <div className="issue-modal-sec-head">Relationships</div>
+                    {edgesFor(selectedNode.id).map((e, i) => {
+                      const isSource = e.fromNodeId === selectedNode.id;
+                      const otherId = isSource ? e.toNodeId : e.fromNodeId;
+                      const otherText = (nodeMapFull[otherId] ?? "another issue").slice(0, 50);
+                      const verb = e.type === "BLOCKS" ? (isSource ? "blocks" : "is blocked by")
+                                 : e.type === "CAUSES" ? (isSource ? "causes" : "is caused by")
+                                 : "is related to";
+                      return (
+                        <div key={i} className="issue-relation">
+                          This issue <strong>{verb}</strong> <em>{otherText}</em>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {selectedNode.priorityScore > 0 && (
+                  <div className="issue-modal-section">
+                    <div className="issue-modal-sec-head">Why This Score</div>
+                    <div className="issue-score-factor"><span>Urgency</span><span>{selectedNode.urgency}/10</span></div>
+                    <div className="issue-score-factor"><span>Cognitive weight</span><span>{selectedNode.cognitiveWeight}/10</span></div>
+                    <div className="issue-score-factor">
+                      <span>Feasibility</span>
+                      <span>
+                        {selectedNode.actionability === "ACTIONABLE" ? "Actionable (×0.8)"
+                          : selectedNode.actionability === "ANXIETY" ? "Anxiety (×0.3)"
+                          : "Unclear (×0.5)"}
+                      </span>
+                    </div>
+                    <div className="issue-score-factor">
+                      <span>Graph impact</span>
+                      <span>
+                        {(blocksCountByNode[selectedNode.id] ?? 0) >= 2
+                          ? `Blocks ${blocksCountByNode[selectedNode.id]} issues (×1.5 boost)`
+                          : (blocksCountByNode[selectedNode.id] ?? 0) === 1
+                          ? "Blocks 1 issue"
+                          : "No downstream blocks"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {selectedNode.hiddenAssumptions?.length > 0 && (
+                  <div className="issue-modal-section">
+                    <div className="issue-modal-sec-head">Hidden Assumptions</div>
+                    <div className="issue-modal-sub">Confirm or reject — rejected assumptions are excluded from confidence</div>
+                    {selectedNode.hiddenAssumptions.map((a, i) => {
+                      const status = getAssumptionStatus(selectedNode.id, i);
+                      return (
+                        <div key={i} className={`issue-assumption-row${status === "rejected" ? " rejected" : ""}`}>
+                          <div className="issue-assumption">"{a}"</div>
+                          <div className="issue-assumption-actions">
+                            <button
+                              className={`assumption-btn accurate${status === "accurate" ? " active" : ""}`}
+                              onClick={() => setAssumption(selectedNode.id, i, "accurate")}
+                            >✓ Accurate</button>
+                            <button
+                              className={`assumption-btn reject${status === "rejected" ? " active" : ""}`}
+                              onClick={() => setAssumption(selectedNode.id, i, "rejected")}
+                            >✕ Not accurate</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {selectedNode.actionPlan && selectedNode.actionPlan.framework !== "Unavailable" && selectedNode.actionPlan.steps?.length > 0 && (
+                  <div className="issue-modal-section">
+                    <div className="issue-modal-sec-head">Full Action Plan</div>
+                    {selectedNode.actionPlan.steps.map((s, i) => (
+                      <div key={i} className="issue-step"><span className="issue-step-num">{i + 1}</span>{s}</div>
+                    ))}
+                    {selectedNode.actionPlan.urgencyNote && (
+                      <div className="issue-timeframe">{selectedNode.actionPlan.urgencyNote}</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </BorderGlow>
           </div>
         )}
 
@@ -733,10 +974,8 @@ export default function Workspace() {
         <footer className="ws-statusbar">
           <div className="statusbar-left">
             <div className="statusbar-item live">Reframe — Workspace</div>
-            <div className="statusbar-item">Claude Sonnet 4.6</div>
             <div className="statusbar-item">5-Stage Pipeline</div>
           </div>
-          <div className="statusbar-item">USAIII Hackathon 2026</div>
         </footer>
       </div>
     </>

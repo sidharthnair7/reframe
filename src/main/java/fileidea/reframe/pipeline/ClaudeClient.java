@@ -6,7 +6,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.util.retry.Retry;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +35,7 @@ public class ClaudeClient {
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .retryWhen(Retry.backoff(2, Duration.ofMillis(300)))
                     .block();
 
             JsonNode responseJson = objectMapper.readTree(responseBody);
