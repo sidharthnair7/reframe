@@ -678,7 +678,7 @@ export default function Workspace() {
               </div>
               <div className="center-desc">
                 {loading
-                  ? "Claude is classifying, extracting assumptions, building your dependency graph, scoring, and generating your action plan."
+                  ? "Reframe classifying, extracting assumptions, building your dependency graph, scoring, and generating your action plan."
                   : "Type or speak on the left. Your prioritized issues will appear here as an interactive sphere."}
               </div>
               {loading && (
@@ -726,7 +726,7 @@ export default function Workspace() {
             <div className="right-scroll">
               <div className="typing-row" style={{ marginTop: "0.5rem" }}>
                 <div className="t-dot" /><div className="t-dot" /><div className="t-dot" />
-                <span className="typing-label">Claude is reasoning…</span>
+                <span className="typing-label">Reframe is reasoning…</span>
               </div>
             </div>
           )}
