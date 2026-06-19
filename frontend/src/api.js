@@ -46,10 +46,10 @@ export async function analyzeBrainDump({ rawText, sessionId }) {
   });
 }
 
-export async function voiceExchange({ transcript, history }) {
+export async function voiceExchange({ transcript, history, speakerName }) {
   return request("/voice/exchange", {
     method: "POST",
-    body: JSON.stringify({ transcript, history }),
+    body: JSON.stringify({ transcript, history, speakerName }),
   });
 }
 
