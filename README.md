@@ -4,7 +4,7 @@
 
 AI-powered cognitive triage for overwhelmed students. Talk or type out everything that's stressing you out — Reframe runs it through a 5-stage reasoning pipeline and hands back one clear, confidence-scored next move, not a wall of reorganized chaos.
 
-Built in 36 hours for [USAII's Global AI Hackathon 2026](https://aihackathon.usaii.org/).
+Built for [USAII's Global AI Hackathon 2026](https://aihackathon.usaii.org/).
 
 **[Watch the demo](#)** · **[Devpost submission](#)** · Live deployment coming soon
 
