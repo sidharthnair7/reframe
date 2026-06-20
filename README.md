@@ -6,7 +6,7 @@ AI-powered cognitive triage for overwhelmed students. Talk or type out everythin
 
 Built for [USAII's Global AI Hackathon 2026](https://aihackathon.usaii.org/).
 
-**[Watch the demo](#)** · **[Devpost submission](#)** · Live deployment coming soon
+**[Watch the demo](https://youtu.be/i5htORaUKBk)** · **[Devpost submission](https://devpost.com/software/reframe-of3glt?ref_content=user-portfolio&ref_feature=in_progress)** · Live deployment coming soon
 
 ![Reframe landing page](docs/screenshot-landing.png)
 ![Reframe workspace — issue sphere, Your Next Move, and dependency graph](docs/screenshot-workspace.png)
