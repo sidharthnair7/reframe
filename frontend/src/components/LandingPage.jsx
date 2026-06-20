@@ -270,7 +270,7 @@ function Nav({ onScrollTo }) {
         <>
             <nav className={`nav${scrolled ? " scrolled" : ""}`}>
                 <a className="nav-brand" onClick={() => navTo("hero")}>
-                    <div className="nav-logo">M</div>
+                    <div className="nav-logo">R</div>
                     <div className="nav-wordmark">Reframe<span> /</span></div>
                 </a>
                 <div className="nav-right">

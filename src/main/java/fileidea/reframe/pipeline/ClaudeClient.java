@@ -35,7 +35,7 @@ public class ClaudeClient {
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(String.class)
-                    .retryWhen(Retry.backoff(2, Duration.ofMillis(300)))
+                    .retryWhen(Retry.backoff(4, Duration.ofMillis(400)))
                     .block();
 
             JsonNode responseJson = objectMapper.readTree(responseBody);

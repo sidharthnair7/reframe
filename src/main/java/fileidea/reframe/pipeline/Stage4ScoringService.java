@@ -44,7 +44,7 @@ public class Stage4ScoringService {
             double rawScore = impactScore * feasibilityScore *graphBonus*10;
             int assumptionCount = node.getHiddenAssumptions()!=null?node.getHiddenAssumptions().size():0;
 
-            double confidenceInterval = assumptionCount > 2 ? 0.15 : 0.08;
+            double confidenceInterval = computeConfidenceInterval(assumptionCount);
 
             node.setPriorityScore(Math.round(rawScore * 10.0) / 10.0);
             node.setConfidenceInterval(confidenceInterval);
@@ -65,5 +65,10 @@ public class Stage4ScoringService {
             return node;
         }).toList();
 
+    }
+
+    /** Shared with GraphController so a human-in-the-loop assumption rejection recomputes the same way Stage 4 originally scored it. */
+    public static double computeConfidenceInterval(int assumptionCount) {
+        return assumptionCount > 2 ? 0.15 : 0.08;
     }
 }

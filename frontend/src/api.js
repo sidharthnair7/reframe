@@ -64,3 +64,10 @@ export async function getHistory() {
 export async function getSession(sessionId) {
   return request(`/graph/${sessionId}`);
 }
+
+export async function updateAssumptions(issueId, rejectedIndices) {
+  return request(`/graph/issues/${issueId}/assumptions`, {
+    method: "PATCH",
+    body: JSON.stringify({ rejectedIndices }),
+  });
+}

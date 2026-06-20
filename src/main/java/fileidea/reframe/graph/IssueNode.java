@@ -36,6 +36,7 @@ public class IssueNode {
     private double priorityScore;
     private double confidenceInterval;
     private String priorityReasoning;
+    private List<Integer> rejectedAssumptionIndices;
 
 
     private ActionPlan actionPlan;

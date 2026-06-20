@@ -41,7 +41,7 @@ public class ElevenLabsClient {
                 ))
                 .retrieve()
                 .bodyToMono(byte[].class)
-                .retryWhen(Retry.backoff(2, Duration.ofMillis(300)))
+                .retryWhen(Retry.backoff(4, Duration.ofMillis(400)))
                 .block();
     }
 }

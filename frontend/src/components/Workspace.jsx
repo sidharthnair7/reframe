@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { analyzeBrainDump, voiceExchange } from "../api";
+import { analyzeBrainDump, voiceExchange, updateAssumptions } from "../api";
 import InfiniteMenu from "./InfiniteMenu";
 import MemoryGarden from "./MemoryGarden";
 import BorderGlow from "./BorderGlow";
@@ -485,8 +485,27 @@ export default function Workspace() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [assumptionStatus, setAssumptionStatus] = useState({}); // `${nodeId}-${index}` -> "accurate" | "rejected"
 
-  const setAssumption = (nodeId, i, status) =>
-    setAssumptionStatus(prev => ({ ...prev, [`${nodeId}-${i}`]: status }));
+  const setAssumption = (nodeId, i, status) => {
+    const key = `${nodeId}-${i}`;
+    const nextStatus = { ...assumptionStatus, [key]: status };
+    setAssumptionStatus(nextStatus);
+
+    const node = (result?.issues ?? []).find(n => n.id === nodeId);
+    if (!node?.hiddenAssumptions) return;
+
+    // Persist the full rejected set so confidence is recomputed and stored server-side,
+    // not just recalculated locally — makes the human-in-the-loop feedback real, not cosmetic.
+    const rejectedIndices = node.hiddenAssumptions
+      .map((_, idx) => idx)
+      .filter(idx => nextStatus[`${nodeId}-${idx}`] === "rejected");
+
+    updateAssumptions(nodeId, rejectedIndices)
+      .then(updatedNode => {
+        setResult(r => r ? { ...r, issues: r.issues.map(n => n.id === nodeId ? updatedNode : n) } : r);
+        setSelectedNode(sn => (sn && sn.id === nodeId) ? updatedNode : sn);
+      })
+      .catch(e => console.warn("Failed to persist assumption status:", e));
+  };
   const getAssumptionStatus = (nodeId, i) => assumptionStatus[`${nodeId}-${i}`];
 
   // Confidence narrows as the user confirms/rejects assumptions — mirrors the backend's own
@@ -498,6 +517,23 @@ export default function Workspace() {
     if (rejected === 0) return node.confidenceInterval;
     return (total - rejected) > 2 ? 0.15 : 0.08;
   }
+
+  // Hydrate rejected-assumption state from persisted backend data (initial load / loaded sessions) —
+  // additive only, never overwrites a status the user already set locally this session.
+  useEffect(() => {
+    if (!result?.issues) return;
+    setAssumptionStatus(prev => {
+      const next = { ...prev };
+      let changed = false;
+      result.issues.forEach(node => {
+        (node.rejectedAssumptionIndices ?? []).forEach(idx => {
+          const key = `${node.id}-${idx}`;
+          if (!next[key]) { next[key] = "rejected"; changed = true; }
+        });
+      });
+      return changed ? next : prev;
+    });
+  }, [result]);
 
   const issues = result?.issues ?? [];
   const edges  = result?.edges  ?? [];
@@ -635,7 +671,7 @@ export default function Workspace() {
 
           {/* Pipeline stages */}
           <div className="panel-head" style={{ marginTop: "auto" }}>
-            <span className="panel-label">5-Stage Pipeline</span>
+            <span className="panel-label heading-emphasis">5-Stage Pipeline</span>
             <span className="panel-badge">{stage >= 0 && stage < STAGES.length ? `${stage+1}/5` : stage >= STAGES.length ? "Done" : "Idle"}</span>
           </div>
           <div className="stages-area">
@@ -777,7 +813,7 @@ export default function Workspace() {
 
               {edges.length > 0 && (
                 <div className="summary-card">
-                  <div className="summary-head">Dependency Graph</div>
+                  <div className="summary-head heading-emphasis">Dependency Graph</div>
                   {edges.slice(0, 8).map((e, i) => (
                     <div className="graph-edge-item" key={i}>
                       <div className="edge-from">{nodeMapFull[e.fromNodeId] ?? e.fromNodeId?.slice(0, 8)}</div>
