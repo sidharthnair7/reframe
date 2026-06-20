@@ -8,8 +8,8 @@ Built in 36 hours for [USAII's Global AI Hackathon 2026](https://aihackathon.usa
 
 **[Watch the demo](#)** · **[Devpost submission](#)** · Live deployment coming soon
 
-![Reframe workspace — issue sphere and dependency graph](docs/screenshot-workspace.png)
-![Your Next Move — explainable scoring and action plan](docs/screenshot-next-move.png)
+![Reframe landing page](docs/screenshot-landing.png)
+![Reframe workspace — issue sphere, Your Next Move, and dependency graph](docs/screenshot-workspace.png)
 
 ## What it does
 
