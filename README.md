@@ -35,30 +35,23 @@ You get back a prioritized, explainable list of issues, a dependency graph, and 
 
 ## Architecture
 
-```
-                              ┌─────────────────────────┐
-                              │   Netlify (frontend)     │
-                              │   React 19 + Vite        │
-                              │   Hand-rolled WebGL2 +   │
-                              │   SVG graph explorer     │
-                              └────────────┬─────────────┘
-                                           │ REST/JSON (JWT auth)
-                              ┌────────────▼─────────────┐
-                              │   Render (backend)        │
-                              │   Spring Boot 4.1 / Java 25│
-                              │   5-stage reasoning        │
-                              │   pipeline + usage caps    │
-                              └──┬───────┬───────┬────────┘
-                                 │       │       │
-                        ┌────────▼┐ ┌────▼────┐ ┌▼─────────┐      ┌─────────────────┐
-                        │ Claude  │ │ Voyage  │ │ElevenLabs│      │ MongoDB Atlas    │
-                        │ API     │ │ AI      │ │          │◀────▶│ (persistence,   │
-                        │(reason- │ │(RAG     │ │(voice    │      │ managed cloud)  │
-                        │ing)     │ │embed.)  │ │output)   │      └─────────────────┘
-                        └─────────┘ └─────────┘ └──────────┘
+```mermaid
+flowchart TD
+    FE["Frontend — Netlify<br/>React 19 + Vite<br/>Hand-rolled WebGL2 sphere · Hand-rolled SVG graph explorer"]
+    BE["Backend — Render<br/>Spring Boot 4.1 / Java 25<br/>5-stage reasoning pipeline · usage caps · JWT auth"]
+    Claude["Claude API<br/>reasoning: triage, assumptions,<br/>scoring narration, action plans"]
+    Voyage["Voyage AI<br/>embeddings for RAG<br/>framework retrieval"]
+    Eleven["ElevenLabs<br/>text-to-speech<br/>for voice output"]
+    Mongo["MongoDB Atlas<br/>persistence<br/>(managed, not self-hosted)"]
+
+    FE -->|"REST/JSON over HTTPS<br/>JWT auth, CORS"| BE
+    BE --> Claude
+    BE --> Voyage
+    BE --> Eleven
+    BE --> Mongo
 ```
 
-Both services are containerized (`Dockerfile` for the backend, `Dockerfile` + nginx for an alternate same-origin deployment) and can run together locally via `docker-compose.yml`. In the live deployment, the frontend builds natively on Netlify and talks to the Render backend cross-origin (CORS-configured), rather than through the nginx reverse-proxy path. Voice input runs entirely in-browser via the Web Speech API (free, no extra service); voice *output* is the only piece that goes through ElevenLabs.
+Both services are containerized (root `Dockerfile` for the backend, `frontend/Dockerfile` + nginx for an alternate same-origin deployment) and can run together locally via `docker-compose.yml`. In the live deployment, the frontend builds natively on Netlify and talks to the Render backend cross-origin (CORS-configured), rather than through the nginx reverse-proxy path. Voice input runs entirely in-browser via the Web Speech API (free, no extra service); voice *output* is the only piece that goes through ElevenLabs.
 
 ## Tech stack
 
