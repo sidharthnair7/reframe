@@ -497,8 +497,8 @@ function Team() {
             <h2 className="section-title reveal">Two builders. Zero handoff gaps.</h2>
             <div className="team-grid-final reveal" style={{ marginTop: "2rem" }}>
                 {[
-                    { initials: "SN", name: "Sidharth Nair", role: "Full-Stack & AI Lead", bio: "Spring Boot · Claude API prompt chains · MongoDB Atlas Vector Search · Bayesian scoring engine · React · Hand-rolled WebGL/SVG graph visualization" },
-                    { initials: "BB", name: "Basudev Biju", role: "Frontend & Design Lead", bio: "WebGL Galaxy background · Design system · This landing page" },
+                    { initials: "SN", name: "Sidharth Nair", role: "Full-Stack & AI Lead", bio: "Spring Boot · Claude API prompt chains · MongoDB Atlas Vector Search · Bayesian scoring engine · React · Hand-rolled WebGL/SVG graph visualization", github: "https://github.com/sidharthnair7", linkedin: "https://www.linkedin.com/in/sidharthnair7/" },
+                    { initials: "BB", name: "Basudev Biju", role: "Frontend & Design Lead", bio: "WebGL Galaxy background · Design system · This landing page", github: "https://github.com/basudevbiju", linkedin: "https://www.linkedin.com/in/basudev-biju/" },
                 ].map((m) => (
                     <div className="team-card-final" key={m.initials}>
                         <div className="team-avatar">{m.initials}</div>
@@ -507,8 +507,8 @@ function Team() {
                             <div className="team-role-tag">{m.role}</div>
                             <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.5, marginBottom: "0.5rem" }}>{m.bio}</p>
                             <div className="team-links">
-                                <a href="#" className="team-link">GitHub ↗</a>
-                                <a href="#" className="team-link">LinkedIn ↗</a>
+                                <a href={m.github} target="_blank" rel="noopener noreferrer" className="team-link">GitHub ↗</a>
+                                <a href={m.linkedin} target="_blank" rel="noopener noreferrer" className="team-link">LinkedIn ↗</a>
                             </div>
                         </div>
                     </div>
