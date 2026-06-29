@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import LandingPage from "./components/LandingPage";
 import Workspace from "./components/Workspace";
+import CrisisResourceBar from "./components/CrisisResourceBar";
 
 function ProtectedRoute({ children }) {
   const { isAuthed, authLoading } = useAuth();
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/workspace" element={<ProtectedRoute><Workspace /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <CrisisResourceBar />
       </BrowserRouter>
     </AuthProvider>
   );

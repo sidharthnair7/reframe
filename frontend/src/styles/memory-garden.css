@@ -6,6 +6,11 @@
   padding: 1.5rem;
   overflow-y: auto;
   gap: 1.25rem;
+  /* .panel-center (its parent) is intentionally semi-transparent so the ambient
+     background shows through behind the sphere -- but Garden is dense card content,
+     not an ambient view, so it needs its own solid backing like the side panels do. */
+  background: rgba(0,0,0,0.82);
+  backdrop-filter: blur(20px);
 }
 
 .garden-header {
@@ -74,13 +79,15 @@
 .garden-empty-desc { font-family: var(--mono); font-size: 0.65rem; color: var(--text-muted); max-width: 28ch; line-height: 1.6; }
 
 .garden-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   align-content: start;
 }
 
 .garden-card {
+  flex: 1 1 260px;
+  max-width: 480px;
   background: var(--glass-bg, rgba(255,255,255,0.03));
   border: 1px solid var(--border);
   border-radius: 12px;

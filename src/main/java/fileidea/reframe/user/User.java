@@ -28,9 +28,13 @@ public class User implements UserDetails {
 
     private String password;
     private String displayName;
+    private String country;
 
     @Builder.Default
     private Role role = Role.USER;
+
+    @Builder.Default
+    private boolean premium = false;
 
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

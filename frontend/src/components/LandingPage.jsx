@@ -11,6 +11,12 @@ function GalaxyBackground() {
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
+        // Skip the WebGL canvas entirely for reduced-motion preferences, and for a
+        // continuously-animating full-screen shader, that's the right default to respect.
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            container.style.background = "radial-gradient(circle at 50% 30%, rgba(129,140,248,0.06), #000 70%)";
+            return;
+        }
         const canvas = document.createElement("canvas");
         canvas.style.cssText = "display:block;width:100%;height:100%";
         container.appendChild(canvas);
@@ -130,7 +136,7 @@ function GalaxyBackground() {
         window.addEventListener("mousemove", onMouseMove);
         window.addEventListener("mouseleave", onMouseLeave);
 
-        let t = 0, lastTs = null, rafId;
+        let t = 0, lastTs = null, rafId = null;
         function render(ts) {
             rafId = requestAnimationFrame(render);
             const dt = lastTs ? Math.min((ts - lastTs) / 1000, 0.05) : 0;
@@ -148,8 +154,21 @@ function GalaxyBackground() {
         }
         rafId = requestAnimationFrame(render);
 
+        // Don't burn GPU/battery animating a background nobody can see.
+        function onVisibilityChange() {
+            if (document.hidden) {
+                if (rafId) cancelAnimationFrame(rafId);
+                rafId = null;
+            } else if (!rafId) {
+                lastTs = null;
+                rafId = requestAnimationFrame(render);
+            }
+        }
+        document.addEventListener("visibilitychange", onVisibilityChange);
+
         return () => {
-            cancelAnimationFrame(rafId);
+            if (rafId) cancelAnimationFrame(rafId);
+            document.removeEventListener("visibilitychange", onVisibilityChange);
             window.removeEventListener("resize", resize);
             window.removeEventListener("mousemove", onMouseMove);
             window.removeEventListener("mouseleave", onMouseLeave);
@@ -177,25 +196,6 @@ const ARCH_ROWS = [
     { type: "node", label: "Stage 5: RAG Action Plan", cls: "process", comment: "// Atlas Vector Search + Claude generation" },
     { type: "arrow" },
     { type: "node", label: "React Output: Graph + Priority Stack", cls: "output", comment: "// D3 visualization · Interactive UI" },
-];
-
-const DEMO_RESPONSES = [
-    {
-        priorities: [
-            { rank: 1, title: "Immediate deadline triage", desc: "3 items due within 48h. Start with the highest-grade-weight task. Break into 25-min blocks.", confidence: "78%" },
-            { rank: 2, title: "Roommate conversation framework", desc: "CBT script generated. Low effort (10 min), high emotional payoff. Do this tonight.", confidence: "71%" },
-            { rank: 3, title: "Project initiation: 5-minute start", desc: "You don't need to finish. Open the document. Write one sentence. That's the win.", confidence: "65%" },
-        ],
-        assumption: 'Hidden assumption: You believe finishing everything perfectly is the only acceptable outcome. <strong>Reframe:</strong> Partial progress on the right things beats perfect completion of everything.',
-    },
-    {
-        priorities: [
-            { rank: 1, title: "Anxiety decomposition", desc: "Your \"overwhelm\" contains 4 distinct concerns. Addressing each separately reduces cognitive load by 60%.", confidence: "74%" },
-            { rank: 2, title: "Energy-based scheduling", desc: "Your peak focus is 9am-12pm. Schedule the hardest task there. Protect that block.", confidence: "69%" },
-            { rank: 3, title: "Decision deferral with check-in", desc: "The major uncertainty doesn't need solving today. Bookmark it with a 2-week review trigger.", confidence: "62%" },
-        ],
-        assumption: "Hidden assumption: You're treating uncertainty as failure. <strong>Reframe:</strong> Not knowing yet is valid. It means you're still gathering data — and that's smart.",
-    },
 ];
 
 const STATUSES = ["Claude Active", "5-Stage Pipeline", "RAG Enabled", "Vector Search", "Bayesian Scorer"];
@@ -246,7 +246,7 @@ function useTilt(ref, maxDeg = 8) {
 // =============================================
 // NAVIGATION
 // =============================================
-function Nav({ onScrollTo }) {
+function Nav({ onScrollTo, onAuthOpen }) {
     const [scrolled, setScrolled] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const [statusIdx, setStatusIdx] = useState(0);
@@ -265,6 +265,7 @@ function Nav({ onScrollTo }) {
     }, []);
 
     const navTo = (id) => { onScrollTo(id); setMobileOpen(false); };
+    const openAuth = (mode) => { onAuthOpen(mode); setMobileOpen(false); };
 
     return (
         <>
@@ -275,7 +276,7 @@ function Nav({ onScrollTo }) {
                 </a>
                 <div className="nav-right">
                     <ul className="nav-links">
-                        {["problem","demo","architecture","team-section"].map((id) => (
+                        {["problem","architecture","team-section"].map((id) => (
                             <li key={id}><a onClick={() => navTo(id)}>{id.replace("-section","").replace("-"," ")}</a></li>
                         ))}
                     </ul>
@@ -283,16 +284,21 @@ function Nav({ onScrollTo }) {
                         <div className="status-dot" />
                         <span>{STATUSES[statusIdx]}</span>
                     </div>
+                    <div className="nav-auth-actions desktop-only">
+                        <button className="nav-login-btn" onClick={() => openAuth("login")}>Log In</button>
+                        <button className="nav-signup-btn" onClick={() => openAuth("register")}>Sign Up</button>
+                    </div>
                 </div>
                 <button className={`nav-toggle${mobileOpen ? " active" : ""}`} aria-label="Toggle navigation" onClick={() => setMobileOpen(!mobileOpen)}>
                     <span /><span /><span />
                 </button>
             </nav>
             <div className={`nav-mobile${mobileOpen ? " active" : ""}`}>
-                {["problem","demo","architecture","team-section"].map((id) => (
+                {["problem","architecture","team-section"].map((id) => (
                     <a key={id} onClick={() => navTo(id)}>{id.replace("-section","").replace("-"," ")}</a>
                 ))}
-                <a style={{ opacity: 0.6 }} onClick={() => navTo("demo")}>Try It Live</a>
+                <a onClick={() => openAuth("login")}>Log In</a>
+                <a onClick={() => openAuth("register")}>Sign Up</a>
             </div>
         </>
     );
@@ -301,7 +307,7 @@ function Nav({ onScrollTo }) {
 // =============================================
 // HERO SECTION
 // =============================================
-function Hero({ onScrollTo }) {
+function Hero({ onAuthOpen }) {
     const cardRef = useRef(null);
     const [savings, setSavings] = useState("0.0 hrs");
     useTilt(cardRef, 8);
@@ -329,11 +335,11 @@ function Hero({ onScrollTo }) {
                     <h1 className="hero-title">AI-Powered<br />Cognitive Triage<br />for Students</h1>
                     <p className="hero-subtitle">
                         Reframe ingests your mental overload — deadlines, anxieties, half-baked goals —
-                        and runs it through a 5-stage reasoning pipeline to hand you back a prioritized action plan. Built in 36 hours.
+                        and runs it through a 5-stage reasoning pipeline to hand you back a prioritized action plan.
                     </p>
                     <div className="hero-actions">
-                        <button className="btn btn-primary" onClick={() => onScrollTo("demo")}>Try the Live App →</button>
-                        <button className="btn btn-secondary" onClick={() => onScrollTo("video-section")}>▶ Watch 2-Min Demo</button>
+                        <button className="btn btn-primary" onClick={() => onAuthOpen("register")}>Get Started →</button>
+                        <button className="btn btn-secondary" onClick={() => onAuthOpen("login")}>Log In</button>
                     </div>
                 </div>
                 <div className="hero-visual">
@@ -410,135 +416,27 @@ function ProblemSolution() {
 }
 
 // =============================================
-// DEMO SECTION
-// =============================================
-function Demo() {
-    const [input, setInput] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [result, setResult] = useState(null);
-    const cardRef = useRef(null);
-    const outputRef = useRef(null);
-    useTilt(cardRef, 6);
-
-    const copyToClipboard = (text) => navigator.clipboard.writeText(text).then(() => alert("Copied!"));
-
-    const runDemo = useCallback(() => {
-        if (!input.trim()) return;
-        setLoading(true);
-        setResult(null);
-        setTimeout(() => {
-            const resp = DEMO_RESPONSES[Math.floor(Math.random() * DEMO_RESPONSES.length)];
-            setResult(resp);
-            setLoading(false);
-            setTimeout(() => outputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
-        }, 1800);
-    }, [input]);
-
-    const handleKeyDown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); runDemo(); } };
-
-    return (
-        <div className="demo-section-wrapper" id="demo">
-            <section className="section">
-                <div className="section-label reveal">Interactive Demo</div>
-                <h2 className="section-title reveal">Try it now. No signup required.</h2>
-                <p className="section-desc reveal" style={{ marginBottom: "2rem" }}>
-                    Dump whatever's on your mind. The 5-stage pipeline will triage it into a priority stack.
-                </p>
-                <div className="demo-wrapper reveal">
-                    <div className="demo-card" ref={cardRef}>
-                        <div className="demo-header">
-                            <span className="demo-dot" /><span className="demo-dot" /><span className="demo-dot" />
-                            <span className="demo-label">reframe-live-demo.tsx</span>
-                        </div>
-                        <div className="demo-credentials">
-                            <div className="demo-cred-item">
-                                <span className="demo-cred-label">Demo Email</span>
-                                <span className="demo-cred-value" onClick={() => copyToClipboard("demo@reframe.ai")} title="Click to copy">demo@reframe.ai 📋</span>
-                            </div>
-                            <div className="demo-cred-item">
-                                <span className="demo-cred-label">Demo Password</span>
-                                <span className="demo-cred-value" onClick={() => copyToClipboard("clarity2026")} title="Click to copy">clarity2026 📋</span>
-                            </div>
-                            <div style={{ fontSize: "0.6rem", color: "var(--text-dim)", alignSelf: "flex-end", marginLeft: "auto" }}>Click to copy ↑</div>
-                        </div>
-                        <label style={{ fontFamily: "var(--display)", fontWeight: 600, fontSize: "0.85rem", color: "var(--text-primary)", display: "block", marginBottom: "0.4rem" }}>
-                            Dump your brain here ↓
-                        </label>
-                        <textarea
-                            className="demo-input"
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder="e.g. I have 3 deadlines this week, my roommate situation is stressful, I haven't started my project, and I'm not even sure I chose the right major..."
-                        />
-                        <div className="demo-submit-row">
-                            <button className="btn btn-primary btn-sm" disabled={loading} onClick={runDemo}>
-                                {loading ? "Processing..." : "Triage My Brain"}
-                            </button>
-                            <span style={{ fontSize: "0.64rem", color: "var(--text-muted)" }}>← 5-stage pipeline · Under 2 seconds</span>
-                        </div>
-                        <div className={`typing-indicator${loading ? " active" : ""}`}>
-                            <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
-                            <span style={{ fontFamily: "var(--mono)", fontSize: "0.62rem", color: "var(--text-muted)", marginLeft: "0.4rem" }}>Claude is reasoning across 5 stages...</span>
-                        </div>
-                        {result && (
-                            <div className="demo-output active" ref={outputRef}>
-                                <div className="output-header">Priority Stack · Confidence: 72%</div>
-                                <div className="priority-stack">
-                                    {result.priorities.map((p) => (
-                                        <div className="priority-item" key={p.rank}>
-                                            <div className="priority-rank">{p.rank}</div>
-                                            <div className="priority-content">
-                                                <h4>{p.title}</h4>
-                                                <p>{p.desc}</p>
-                                                <span className="confidence-badge">confidence: {p.confidence}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="assumption-box" dangerouslySetInnerHTML={{ __html: result.assumption }} />
-                            </div>
-                        )}
-                        <div id="video-section" style={{ marginTop: "1.5rem" }}>
-                            <p style={{ fontFamily: "var(--mono)", fontSize: "0.62rem", color: "var(--text-muted)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.6rem" }}>📹 2-Minute Walkthrough</p>
-                            <div className="video-embed" onClick={() => alert("Video player would load here. Embed your Loom or YouTube link.")}>
-                                <div className="video-placeholder">
-                                    <div className="video-placeholder-icon">▶</div>
-                                    <p style={{ fontFamily: "var(--display)", fontWeight: 600, color: "var(--text-secondary)" }}>Watch the 2-Min Demo</p>
-                                    <p style={{ fontSize: "0.64rem", color: "var(--text-dim)" }}>Embed your Loom / YouTube here</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div>
-    );
-}
-
-// =============================================
 // ARCHITECTURE
 // =============================================
 function Architecture() {
     return (
         <section className="section" id="architecture">
             <div className="section-label reveal">Technical Architecture</div>
-            <h2 className="section-title reveal">How we built it in 36 hours.</h2>
+            <h2 className="section-title reveal">How it's built.</h2>
             <p className="section-desc reveal">Every handoff is typed and validated. Every Claude call is isolated, logged, and auditable.</p>
             <div className="stack-grid reveal">
                 {[
                     { icon: "⚛️", name: "React 18", role: "Frontend" },
                     { icon: "☕", name: "Spring Boot", role: "Backend API" },
-                    { icon: "🧠", name: "Claude API", role: "LLM Reasoning", sponsor: true },
-                    { icon: "🍃", name: "MongoDB Atlas", role: "Vector Search", sponsor: true },
-                    { icon: "📊", name: "D3.js", role: "Graph Visuals" },
-                    { icon: "✨", name: "WebGL Galaxy", role: "Background" },
+                    { icon: "🧠", name: "Claude API", role: "LLM Reasoning" },
+                    { icon: "🍃", name: "MongoDB Atlas", role: "Vector Search" },
+                    { icon: "📊", name: "Hand-Rolled SVG", role: "Graph Visuals" },
+                    { icon: "✨", name: "Hand-Rolled WebGL", role: "3D Visuals" },
                 ].map((s) => (
                     <div className="stack-item" key={s.name}>
                         <div className="stack-item-icon">{s.icon}</div>
                         <div className="stack-item-name">{s.name}</div>
                         <div className="stack-item-role">{s.role}</div>
-                        {s.sponsor && <div className="sponsor-badge">★ Sponsor Tech</div>}
                     </div>
                 ))}
             </div>
@@ -565,38 +463,13 @@ function Architecture() {
 }
 
 // =============================================
-// WHY IT WINS
-// =============================================
-function WhyItWins() {
-    return (
-        <section className="section" id="why-wins">
-            <div className="section-label reveal">Why It Wins</div>
-            <h2 className="section-title reveal">Innovation · Scalability · Impact</h2>
-            <div className="features-grid reveal" style={{ marginTop: "2rem" }}>
-                {[
-                    { icon: "🔬", title: "Innovation", desc: "Novel Bayesian scoring engine in pure Java assigns confidence intervals to priorities — no black-box AI decisions. 5-stage prompt chain with isolated assumption extraction is original architecture." },
-                    { icon: "📈", title: "Scalability", desc: "Stateless Spring Boot microservices. MongoDB Atlas handles horizontal scaling. Claude API calls are queued and retried. Ready for 10,000 concurrent users." },
-                    { icon: "🌍", title: "Impact", desc: "87% of students report cognitive overload. Reframe provides preventive mental health tooling that reduces decision paralysis before crisis. Open source. MIT licensed." },
-                ].map((f) => (
-                    <div className="feature-card" key={f.title}>
-                        <div className="feature-icon">{f.icon}</div>
-                        <div className="feature-title">{f.title}</div>
-                        <div className="feature-desc">{f.desc}</div>
-                    </div>
-                ))}
-            </div>
-        </section>
-    );
-}
-
-// =============================================
 // FUTURE
 // =============================================
 function Future() {
     return (
         <section className="section" id="future">
-            <div className="section-label reveal">Future Scope</div>
-            <h2 className="section-title reveal">What we'd build with another month.</h2>
+            <div className="section-label reveal">What's Next</div>
+            <h2 className="section-title reveal">Where Reframe is headed.</h2>
             <div className="future-grid reveal" style={{ marginTop: "2rem" }}>
                 {[
                     { num: "01", title: "Personalized Model Fine-Tuning", desc: "Fine-tune Claude on user feedback loops so priority scoring adapts to individual work patterns and energy curves." },
@@ -648,7 +521,7 @@ function Team() {
 // =============================================
 // CTA & FOOTER
 // =============================================
-function CTA({ onScrollTo }) {
+function CTA({ onAuthOpen }) {
     return (
         <div className="cta-section-final">
             <div className="section-label">Ready to try?</div>
@@ -656,8 +529,8 @@ function CTA({ onScrollTo }) {
                 Dump your brain.<br />Get clarity back.
             </h2>
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap", marginTop: "1.5rem" }}>
-                <button className="btn btn-primary" onClick={() => onScrollTo("demo")}>Try the Live App →</button>
-                <button className="btn btn-secondary" onClick={() => window.open("https://github.com", "_blank")}>View on GitHub ↗</button>
+                <button className="btn btn-primary" onClick={() => onAuthOpen("register")}>Get Started →</button>
+                <button className="btn btn-secondary" onClick={() => onAuthOpen("login")}>Log In</button>
             </div>
         </div>
     );
@@ -666,9 +539,9 @@ function CTA({ onScrollTo }) {
 function Footer() {
     return (
         <footer className="footer">
-            <div className="footer-left">Reframe — USAIII Hackathon 2026</div>
+            <div className="footer-left">Reframe</div>
             <div className="footer-links">
-                {["GitHub Repo", "Devpost Submission", "MIT License", "Built with Claude API"].map((l) => (
+                {["MIT License", "Built with Claude API"].map((l) => (
                     <a key={l} href="#">{l}</a>
                 ))}
             </div>
@@ -682,10 +555,15 @@ function Footer() {
 // =============================================
 export default function App() {
     const [authOpen, setAuthOpen] = useState(false);
+    const [authMode, setAuthMode] = useState("login");
 
     const scrollTo = useCallback((id) => {
-        if (id === "demo") { setAuthOpen(true); return; }
         document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    }, []);
+
+    const openAuth = useCallback((mode) => {
+        setAuthMode(mode);
+        setAuthOpen(true);
     }, []);
 
     // Scroll lock while modal is open
@@ -730,18 +608,15 @@ export default function App() {
         <>
             <GalaxyBackground />
             <div className="content-wrapper">
-                <Nav onScrollTo={scrollTo} />
-                <Hero onScrollTo={scrollTo} />
+                <Nav onScrollTo={scrollTo} onAuthOpen={openAuth} />
+                <Hero onAuthOpen={openAuth} />
                 <ProblemSolution />
-                <Demo />
                 <Architecture />
-                <hr className="divider" />
-                <WhyItWins />
                 <hr className="divider" />
                 <Future />
                 <hr className="divider" />
                 <Team />
-                <CTA onScrollTo={scrollTo} />
+                <CTA onAuthOpen={openAuth} />
                 <Footer />
             </div>
 
@@ -750,7 +625,7 @@ export default function App() {
                     className="auth-modal-overlay"
                     onClick={(e) => { if (e.target === e.currentTarget) setAuthOpen(false); }}
                 >
-                    <Auth onClose={() => setAuthOpen(false)} />
+                    <Auth onClose={() => setAuthOpen(false)} initialMode={authMode} />
                 </div>
             )}
         </>

@@ -23,6 +23,7 @@ public class UserService {
                 .id(user.getId())
                 .email(user.getEmail())
                 .displayName(user.getDisplayName())
+                .country(user.getCountry())
                 .role(user.getRole())
                 .createdAt(user.getCreatedAt())
                 .build();

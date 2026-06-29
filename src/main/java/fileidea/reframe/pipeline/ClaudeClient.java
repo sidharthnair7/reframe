@@ -54,9 +54,13 @@ public class ClaudeClient {
     private static String stripMarkdown(String text) {
         String s = text.strip();
         if (!s.startsWith("```")) return s;
-        int newline = s.indexOf('\n');
-        if (newline != -1) s = s.substring(newline + 1);
-        if (s.endsWith("```")) s = s.substring(0, s.length() - 3);
-        return s.strip();
+        int firstNewline = s.indexOf('\n');
+        if (firstNewline == -1) return s;
+        String body = s.substring(firstNewline + 1);
+        // Take only what's between the fences — models sometimes add trailing prose
+        // after the closing ``` (e.g. a follow-up question), which isn't part of the JSON.
+        int closingFence = body.indexOf("```");
+        if (closingFence != -1) body = body.substring(0, closingFence);
+        return body.strip();
     }
 }

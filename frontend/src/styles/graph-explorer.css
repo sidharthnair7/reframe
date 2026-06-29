@@ -1,0 +1,193 @@
+@keyframes geOverlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes geNodeFadeIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes geEdgeFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.ge-overlay {
+  position: fixed;
+  inset: 0 0 32px 0;
+  z-index: 800;
+  background: rgba(6,6,9,0.86);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  animation: geOverlayFadeIn 280ms var(--ease, ease) both;
+  display: flex;
+  flex-direction: column;
+}
+
+.ge-close {
+  align-self: flex-end;
+  margin: 1.25rem 1.5rem 0.5rem;
+  padding: 0.55rem 1.1rem;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border-hover, rgba(255,255,255,0.14));
+  border-radius: 100px;
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 180ms var(--ease, ease), border-color 180ms var(--ease, ease);
+  flex-shrink: 0;
+}
+.ge-close:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: var(--border-bright, rgba(255,255,255,0.22));
+}
+
+.ge-layout {
+  flex: 1;
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.5rem 1.5rem 1.5rem;
+  min-height: 0;
+}
+
+.ge-graph-pane {
+  flex: 1 1 65%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ge-svg {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+}
+
+.ge-sparse {
+  font-family: var(--body);
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 320px;
+  line-height: 1.6;
+}
+
+.ge-node {
+  cursor: pointer;
+  animation: geNodeFadeIn 420ms var(--ease, ease) both;
+  transform-origin: center;
+  transition: opacity 200ms ease;
+}
+.ge-node:hover circle {
+  filter: brightness(1.25);
+}
+.ge-node.focused circle {
+  filter: drop-shadow(0 0 10px currentColor);
+}
+
+.ge-node-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  fill: var(--text-muted);
+  pointer-events: none;
+}
+.ge-edge-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  fill: var(--text-primary);
+  paint-order: stroke;
+  stroke: rgba(6,6,9,0.9);
+  stroke-width: 3px;
+  pointer-events: none;
+  animation: geEdgeFadeIn 420ms var(--ease, ease) both;
+}
+
+.ge-node-label.focused {
+  fill: var(--text-primary);
+  font-weight: 600;
+}
+
+.ge-edge {
+  animation: geEdgeFadeIn 420ms var(--ease, ease) both;
+  transition: stroke-opacity 200ms ease;
+}
+
+.ge-detail-pane {
+  flex: 1 1 32%;
+  max-width: 420px;
+  min-width: 320px;
+  overflow-y: auto;
+  display: flex;
+  align-items: flex-start;
+}
+
+.ge-panel-glow-wrap {
+  width: 100%;
+}
+
+.ge-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1.5rem;
+}
+
+.ge-collapsible-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border, rgba(255,255,255,0.07));
+  padding-top: 0.25rem;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary, var(--text-muted));
+  transition: color 150ms ease;
+}
+.ge-collapsible-head:hover {
+  color: var(--text-primary);
+}
+
+.ge-collapsible-chevron {
+  display: inline-block;
+  transition: transform 200ms var(--ease, ease);
+}
+.ge-collapsible-chevron.open {
+  transform: rotate(180deg);
+}
+
+.ge-panel-empty {
+  width: 100%;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  font-family: var(--body);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  border: 1px dashed var(--border, rgba(255,255,255,0.07));
+  border-radius: 16px;
+}
+
+@media (max-width: 900px) {
+  .ge-layout {
+    flex-direction: column;
+  }
+  .ge-graph-pane {
+    flex: 1 1 50%;
+  }
+  .ge-detail-pane {
+    flex: 1 1 50%;
+    max-width: none;
+    min-width: 0;
+  }
+}

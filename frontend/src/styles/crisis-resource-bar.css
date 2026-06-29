@@ -1,0 +1,65 @@
+.crisis-bar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.3rem 1rem;
+  background: rgba(8,8,10,0.92);
+  border-top: 1px solid var(--border, rgba(255,255,255,0.07));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  font-family: var(--mono, 'DM Mono', monospace);
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+}
+
+.crisis-bar-toggle {
+  background: none;
+  border: none;
+  color: var(--text-dim, #74747c);
+  font-family: var(--mono, 'DM Mono', monospace);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0.1rem 0.5rem;
+  transition: color 150ms ease;
+}
+.crisis-bar-toggle:hover {
+  color: var(--text-primary, #e8e8ec);
+}
+
+.crisis-bar-label {
+  color: var(--text-dim, #74747c);
+}
+
+.crisis-bar-link {
+  color: var(--text-primary, #e8e8ec);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-bright, rgba(255,255,255,0.22));
+  transition: color 150ms ease, border-color 150ms ease;
+}
+
+.crisis-bar-link:hover {
+  color: #fff;
+  border-color: #fff;
+}
+
+.crisis-bar-collapse {
+  background: none;
+  border: none;
+  color: var(--text-dim, #74747c);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0 0.25rem;
+  transition: color 150ms ease;
+}
+.crisis-bar-collapse:hover {
+  color: var(--text-primary, #e8e8ec);
+}

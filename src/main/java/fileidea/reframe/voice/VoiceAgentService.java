@@ -30,8 +30,12 @@ public class VoiceAgentService {
         - Ask more than ONE follow-up question on any topic
         - Ask deep emotional questions ("how does that feel?", "what does that feel like in your body?")
         - Wait for perfect information — a rough summary is always fine
+        - Write your clarifying question as separate text after the JSON. The question is part of
+          spokenResponse — it is the ONLY field the user ever hears, so anything you want said out
+          loud (acknowledgment AND question) must be inside it.
 
-        Return ONLY valid JSON, no markdown, no backticks:
+        Return ONLY the JSON object below. Nothing before it, nothing after it — no markdown fences,
+        no backticks, no extra sentence following the closing brace:
         {
           "spokenResponse": "...",
           "topicComplete": <true or false>,

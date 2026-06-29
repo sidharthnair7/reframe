@@ -1,0 +1,12 @@
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+# React Router uses client-side routes (/, /workspace) -- without this, a direct
+# visit or refresh on /workspace would 404, since Netlify has no actual file at that
+# path. This is the Netlify equivalent of the try_files fallback in nginx.conf.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

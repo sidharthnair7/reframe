@@ -1,17 +1,19 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useVoice } from "../hooks/useVoice";
+import { textOverlap } from "../utils/textOverlap";
 import { analyzeBrainDump, voiceExchange, updateAssumptions } from "../api";
 import InfiniteMenu from "./InfiniteMenu";
 import MemoryGarden from "./MemoryGarden";
-import BorderGlow from "./BorderGlow";
+import GraphExplorer from "./GraphExplorer";
 import "../styles/workspace.css";
 
-function effectiveScore(node) {
+export function effectiveScore(node) {
   return node.priorityScore > 0 ? node.priorityScore : (node.urgency + node.cognitiveWeight) * 5;
 }
 
-function priorityHue(node) {
+export function priorityHue(node) {
   const score = effectiveScore(node);
   return score > 70 ? 5 : score > 50 ? 28 : 175;
 }
@@ -23,7 +25,9 @@ function makeThumbnail(node) {
   const score = effectiveScore(node);
   const hue = priorityHue(node);
   const bg = ctx.createRadialGradient(256, 256, 0, 256, 256, 300);
-  bg.addColorStop(0, `hsl(${hue},65%,12%)`); bg.addColorStop(1, `hsl(${hue},45%,4%)`);
+  // Brighter/more saturated than a "close-up card" strictly needs — at sphere distance, the
+  // text becomes illegible, so the background hue itself has to carry the priority signal.
+  bg.addColorStop(0, `hsl(${hue},72%,24%)`); bg.addColorStop(1, `hsl(${hue},58%,11%)`);
   ctx.fillStyle = bg; ctx.fillRect(0, 0, 512, 512);
   const frac = Math.min(1, score / 100);
   ctx.strokeStyle = `hsl(${hue},90%,55%)`; ctx.lineWidth = 16; ctx.lineCap = "round";
@@ -44,18 +48,12 @@ function makeThumbnail(node) {
 }
 
 function deduplicateIssues(issues) {
-  const sig = text => new Set((text || "").toLowerCase().split(/\W+/).filter(w => w.length > 3));
-  const overlap = (a, b) => {
-    const aW = sig(a), bW = sig(b);
-    const common = [...aW].filter(w => bW.has(w)).length;
-    return common / Math.max(aW.size, bW.size, 1);
-  };
   const result = [];
   const idRemap = {};
   for (const issue of issues) {
     const dupIdx = result.findIndex(existing => {
       const sameCat = existing.category && existing.category === issue.category;
-      const textSim = overlap(existing.text, issue.text);
+      const textSim = textOverlap(existing.text, issue.text);
       return (sameCat && textSim > 0.2) || textSim > 0.55;
     });
     if (dupIdx >= 0) {
@@ -86,64 +84,16 @@ function resolveNodeId(id, remap) {
   return current;
 }
 
-// Phonetic name correction — catches ASR mishearings like "Sedar Nair" → "Sidharth Nair"
-const SOUNDEX_CODES = {
-  b: "1", f: "1", p: "1", v: "1",
-  c: "2", g: "2", j: "2", k: "2", q: "2", s: "2", x: "2", z: "2",
-  d: "3", t: "3",
-  l: "4",
-  m: "5", n: "5",
-  r: "6",
-};
-function soundex(word) {
-  const w = (word || "").toLowerCase().replace(/[^a-z]/g, "");
-  if (!w) return "";
-  const first = w[0].toUpperCase();
-  let code = "", prevDigit = SOUNDEX_CODES[w[0]] || "";
-  for (let i = 1; i < w.length && code.length < 3; i++) {
-    const ch = w[i];
-    const digit = SOUNDEX_CODES[ch] || "";
-    if (digit && digit !== prevDigit) code += digit;
-    if (ch !== "h" && ch !== "w") prevDigit = digit;
-  }
-  return first + code.padEnd(3, "0");
-}
-function soundexMatch(codeA, codeB) {
-  if (!codeA || !codeB || codeA[0] !== codeB[0]) return false;
-  let digitMatches = 0;
-  for (let i = 1; i <= 3; i++) if (codeA[i] === codeB[i]) digitMatches++;
-  return digitMatches >= 2;
-}
-function findPhoneticNameMatch(transcriptTokens, nameTokens) {
-  const nameCodes = nameTokens.map(soundex);
-  const n = nameTokens.length;
-  let best = null;
-  for (let start = 0; start <= transcriptTokens.length - n; start++) {
-    let matches = 0;
-    for (let j = 0; j < n; j++) {
-      const tWord = transcriptTokens[start + j];
-      if (Math.abs(tWord.length - nameTokens[j].length) > 3) continue;
-      if (soundexMatch(soundex(tWord), nameCodes[j])) matches++;
-    }
-    if (matches === n && (!best || matches > best.score)) best = { startIndex: start, endIndex: start + n, score: matches };
-  }
-  return best;
-}
-function correctNameInTranscript(transcriptText, displayName) {
-  if (!displayName || !transcriptText) return transcriptText;
-  const nameTokens = displayName.trim().split(/\s+/);
-  const transcriptTokens = transcriptText.split(/\s+/);
-  const match = findPhoneticNameMatch(transcriptTokens.map(t => t.toLowerCase()), nameTokens.map(t => t.toLowerCase()));
-  if (!match) return transcriptText;
-  return [...transcriptTokens.slice(0, match.startIndex), ...nameTokens, ...transcriptTokens.slice(match.endIndex)].join(" ");
-}
-
 /* ── Galaxy Background ── */
 function GalaxyBackground() {
   const ref = useRef(null);
   useEffect(() => {
     const container = ref.current;
     if (!container) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      container.style.background = "radial-gradient(circle at 50% 30%, rgba(129,140,248,0.06), #000 70%)";
+      return;
+    }
     const canvas = document.createElement("canvas");
     canvas.style.cssText = "display:block;width:100%;height:100%";
     container.appendChild(canvas);
@@ -181,7 +131,9 @@ function GalaxyBackground() {
     let t=0,last=null,raf;
     function render(ts){raf=requestAnimationFrame(render);const dt=last?Math.min((ts-last)/1000,0.05):0;last=ts;t+=dt;sm.x+=(mouse.x-sm.x)*0.04;sm.y+=(mouse.y-sm.y)*0.04;sma+=(ma-sma)*0.03;gl.useProgram(prog);gl.uniform1f(u.uTime,t);gl.uniform1f(u.uStarSpeed,t*0.04);gl.uniform2fv(u.uMouse,[sm.x,sm.y]);gl.uniform1f(u.uMouseActiveFactor,sma);gl.clear(gl.COLOR_BUFFER_BIT);gl.drawArrays(gl.TRIANGLES,0,3);}
     raf=requestAnimationFrame(render);
-    return()=>{cancelAnimationFrame(raf);window.removeEventListener("resize",resize);window.removeEventListener("mousemove",onMM);window.removeEventListener("mouseleave",onML);canvas.parentNode?.removeChild(canvas);};
+    function onVis(){if(document.hidden){if(raf)cancelAnimationFrame(raf);raf=null;}else if(!raf){last=null;raf=requestAnimationFrame(render);}}
+    document.addEventListener("visibilitychange",onVis);
+    return()=>{if(raf)cancelAnimationFrame(raf);document.removeEventListener("visibilitychange",onVis);window.removeEventListener("resize",resize);window.removeEventListener("mousemove",onMM);window.removeEventListener("mouseleave",onML);canvas.parentNode?.removeChild(canvas);};
   },[]);
   return <div id="ws-galaxy" ref={ref} />;
 }
@@ -211,47 +163,6 @@ function GhostSphere() {
       ))}
     </svg>
   );
-}
-
-/* ── Voice Hook ── */
-function useVoice({ onTranscript, onStart, onStop, knownName }) {
-  const recRef = useRef(null);
-  const [listening, setListening] = useState(false);
-  const [supported, setSupported] = useState(false);
-
-  // Keep callbacks in a ref so event handlers always see the latest version
-  const cbRef = useRef({ onTranscript, onStart, onStop, knownName });
-  useEffect(() => { cbRef.current = { onTranscript, onStart, onStop, knownName }; });
-
-  useEffect(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-    setSupported(true);
-    const rec = new SR();
-    rec.continuous = true; rec.interimResults = true; rec.lang = "en-US";
-    rec.onresult = e => {
-      let interim = "", final = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const result = e.results[i];
-        const name = cbRef.current.knownName;
-        let t = result[0].transcript;
-        if (name) t = correctNameInTranscript(t, name);
-        result.isFinal ? (final += t) : (interim += t);
-      }
-      cbRef.current.onTranscript({ interim, final });
-    };
-    rec.onstart = () => { setListening(true); cbRef.current.onStart?.(); };
-    rec.onend   = () => { setListening(false); cbRef.current.onStop?.(); };
-    rec.onerror = () => { setListening(false); cbRef.current.onStop?.(); };
-    recRef.current = rec;
-  }, []);
-  const toggle = useCallback(() => {
-    if (!recRef.current) return;
-    listening ? recRef.current.stop() : recRef.current.start();
-  }, [listening]);
-  const stop  = useCallback(() => { if (recRef.current && listening)  recRef.current.stop();  }, [listening]);
-  const start = useCallback(() => { if (recRef.current && !listening) recRef.current.start(); }, [listening]);
-  return { listening, supported, toggle, stop, start };
 }
 
 const STAGES = [
@@ -302,11 +213,13 @@ export default function Workspace() {
       setStage(STAGES.length);
       setResult(data);
       setMode("DONE");
+      setInput(""); // Already reflected in the sphere/analysis now — leaving stale text sitting in the box reads as if nothing happened.
     } catch (err) {
       clearInterval(iv);
       setError(err.message || "Analysis failed. Make sure the backend is running.");
       setMode("IDLE");
       setStage(-1);
+      // Don't clear on failure — the user shouldn't have to retype everything to retry.
     } finally {
       setLoading(false);
     }
@@ -425,7 +338,14 @@ export default function Workspace() {
       if (voiceActiveRef.current && !loadingRef.current) {
         startRecRef.current?.();
       }
-    } catch {
+    } catch (err) {
+      if (err?.status === 429) {
+        voiceActiveRef.current = false;
+        voiceTurnCountRef.current = 0;
+        stopRecRef.current?.();
+        await playTTS(err.message);
+        return;
+      }
       await playTTS("Sorry, could you say that again?");
       if (voiceActiveRef.current) startRecRef.current?.();
     }
@@ -482,8 +402,20 @@ export default function Workspace() {
   const dotClass     = mode === "PROCESSING" ? "processing" : mode === "LISTENING" ? "listening" : "";
 
   const [view, setView] = useState("workspace");
-  const [selectedNode, setSelectedNode] = useState(null);
+  const [focusedNodeId, setFocusedNodeId] = useState(null);
   const [assumptionStatus, setAssumptionStatus] = useState({}); // `${nodeId}-${index}` -> "accurate" | "rejected"
+
+  // Sphere drag-to-explore hint — shown once, ever, the first time a populated sphere renders
+  const [showDragHint, setShowDragHint] = useState(() => !localStorage.getItem("reframe_seen_drag_hint"));
+  const dismissDragHint = useCallback(() => {
+    setShowDragHint(false);
+    localStorage.setItem("reframe_seen_drag_hint", "1");
+  }, []);
+  useEffect(() => {
+    if (!showDragHint) return;
+    const t = setTimeout(dismissDragHint, 4000);
+    return () => clearTimeout(t);
+  }, [showDragHint, dismissDragHint]);
 
   const setAssumption = (nodeId, i, status) => {
     const key = `${nodeId}-${i}`;
@@ -502,7 +434,6 @@ export default function Workspace() {
     updateAssumptions(nodeId, rejectedIndices)
       .then(updatedNode => {
         setResult(r => r ? { ...r, issues: r.issues.map(n => n.id === nodeId ? updatedNode : n) } : r);
-        setSelectedNode(sn => (sn && sn.id === nodeId) ? updatedNode : sn);
       })
       .catch(e => console.warn("Failed to persist assumption status:", e));
   };
@@ -541,6 +472,7 @@ export default function Workspace() {
   // Build id→text map for edge display
   const nodeMap = Object.fromEntries(issues.map(n => [n.id, n.text?.slice(0, 28) + "…"]));
   const nodeMapFull = Object.fromEntries(issues.map(n => [n.id, n.text]));
+  const nodeById = Object.fromEntries(issues.map(n => [n.id, n]));
 
   // How many other issues each node BLOCKS — mirrors Stage4ScoringService's graph bonus logic
   const blocksCountByNode = edges.reduce((acc, e) => {
@@ -560,10 +492,6 @@ export default function Workspace() {
     if (blocks === 1) return "Blocker";
     if (node.actionability === "ACTIONABLE") return "Quick Win";
     return null;
-  }
-
-  function edgesFor(nodeId) {
-    return edges.filter(e => e.fromNodeId === nodeId || e.toNodeId === nodeId);
   }
 
   // Generate canvas thumbnails once per issues list
@@ -700,22 +628,30 @@ export default function Workspace() {
               onClose={() => setView("workspace")}
             />
           ) : issues.length > 0 ? (
-            <div className="center-menu-wrap">
+            <div className="center-menu-wrap" onPointerDown={showDragHint ? dismissDragHint : undefined}>
               <div className="center-menu-title">
                 <span>Issues — drag to rotate · click ↗ to expand</span>
               </div>
-              <InfiniteMenu items={menuItems} scale={2.8} onItemClick={item => setSelectedNode(item.node)} />
+              {showDragHint && (
+                <div className="drag-hint">
+                  <div className="drag-hint-icon">↔</div>
+                  <div className="drag-hint-text">Drag to explore your issues</div>
+                </div>
+              )}
+              <InfiniteMenu items={menuItems} edges={edges} scale={2.8} onItemClick={item => { setFocusedNodeId(item.node.id); setView("graph"); }} />
             </div>
           ) : (
             <div className="center-empty">
-              <GhostSphere />
+              <div className="ghost-sphere-glow">
+                <GhostSphere />
+              </div>
               <div className="center-title">
-                {loading ? "Running 5-stage pipeline…" : "Awaiting your brain dump"}
+                {loading ? "Running 5-stage pipeline…" : "Whenever you're ready"}
               </div>
               <div className="center-desc">
                 {loading
                   ? "Reframe classifying, extracting assumptions, building your dependency graph, scoring, and generating your action plan."
-                  : "Type or speak on the left. Your prioritized issues will appear here as an interactive sphere."}
+                  : "Type or speak on the left — your prioritized issues will take shape here as an interactive sphere."}
               </div>
               {loading && (
                 <div className="typing-row" style={{ marginTop: "0.5rem" }}>
@@ -773,10 +709,10 @@ export default function Workspace() {
                 <div
                   className="next-move-card"
                   style={{ "--nm-hue": priorityHue(topIssue) }}
-                  onClick={() => setSelectedNode(topIssue)}
+                  onClick={() => { setFocusedNodeId(topIssue.id); setView("graph"); }}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedNode(topIssue); } }}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setFocusedNodeId(topIssue.id); setView("graph"); } }}
                 >
                   <div className="next-move-head">
                     <span className="next-move-label">Your Next Move</span>
@@ -866,144 +802,21 @@ export default function Workspace() {
           )}
         </div>
 
-        {/* ISSUE DETAIL MODAL */}
-        {selectedNode && (
-          <div className="issue-overlay" onClick={() => setSelectedNode(null)}>
-            <BorderGlow
-              className="issue-modal-glow-wrap"
-              glowColor={`${priorityHue(selectedNode)} 85 60`}
-              colors={[
-                `hsl(${priorityHue(selectedNode)}, 85%, 60%)`,
-                `hsl(${priorityHue(selectedNode)}, 55%, 30%)`,
-                "#818cf8",
-              ]}
-              backgroundColor="rgba(12,12,16,0.98)"
-              borderRadius={16}
-              glowRadius={28}
-              glowIntensity={1.3}
-              coneSpread={25}
-              edgeSensitivity={32}
-              animated
-            >
-              <div className="issue-modal" onClick={e => e.stopPropagation()}>
-                <button className="issue-modal-close" onClick={() => setSelectedNode(null)}>✕</button>
-                <div className="issue-modal-cat-row">
-                  <div className="issue-modal-cat">{selectedNode.category}</div>
-                  {badgeFor(selectedNode) && (
-                    <span className={`issue-badge issue-badge-${badgeFor(selectedNode).toLowerCase().replace(/\s+/g, "-")}`}>
-                      {badgeFor(selectedNode)}
-                    </span>
-                  )}
-                </div>
-                <div className="issue-modal-text">{selectedNode.text}</div>
-                <div className="issue-modal-chips">
-                  <span className="issue-chip">{selectedNode.actionability}</span>
-                  <span className="issue-chip">Urgency {selectedNode.urgency}/10</span>
-                  <span className="issue-chip">Weight {selectedNode.cognitiveWeight}/10</span>
-                  {selectedNode.priorityScore > 0 && (
-                    <span className="issue-chip">
-                      Score {selectedNode.priorityScore?.toFixed(1)}
-                      {selectedNode.confidenceInterval != null && ` ± ${(effectiveConfidence(selectedNode) * 100).toFixed(0)}%`}
-                    </span>
-                  )}
-                </div>
-
-                {(() => {
-                  const plan = selectedNode.actionPlan && selectedNode.actionPlan.framework !== "Unavailable" ? selectedNode.actionPlan : null;
-                  const firstStep = plan?.steps?.[0];
-                  return firstStep ? (
-                    <div className="issue-next-step">
-                      <span className="issue-next-step-lbl">Next step</span>
-                      <span>{firstStep}</span>
-                      {plan.timeEstimate && <span className="issue-next-step-time">⏱ {plan.timeEstimate}</span>}
-                    </div>
-                  ) : null;
-                })()}
-
-                {edgesFor(selectedNode.id).length > 0 && (
-                  <div className="issue-modal-section">
-                    <div className="issue-modal-sec-head">Relationships</div>
-                    {edgesFor(selectedNode.id).map((e, i) => {
-                      const isSource = e.fromNodeId === selectedNode.id;
-                      const otherId = isSource ? e.toNodeId : e.fromNodeId;
-                      const otherText = (nodeMapFull[otherId] ?? "another issue").slice(0, 50);
-                      const verb = e.type === "BLOCKS" ? (isSource ? "blocks" : "is blocked by")
-                                 : e.type === "CAUSES" ? (isSource ? "causes" : "is caused by")
-                                 : "is related to";
-                      return (
-                        <div key={i} className="issue-relation">
-                          This issue <strong>{verb}</strong> <em>{otherText}</em>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {selectedNode.priorityScore > 0 && (
-                  <div className="issue-modal-section">
-                    <div className="issue-modal-sec-head">Why This Score</div>
-                    <div className="issue-score-factor"><span>Urgency</span><span>{selectedNode.urgency}/10</span></div>
-                    <div className="issue-score-factor"><span>Cognitive weight</span><span>{selectedNode.cognitiveWeight}/10</span></div>
-                    <div className="issue-score-factor">
-                      <span>Feasibility</span>
-                      <span>
-                        {selectedNode.actionability === "ACTIONABLE" ? "Actionable (×0.8)"
-                          : selectedNode.actionability === "ANXIETY" ? "Anxiety (×0.3)"
-                          : "Unclear (×0.5)"}
-                      </span>
-                    </div>
-                    <div className="issue-score-factor">
-                      <span>Graph impact</span>
-                      <span>
-                        {(blocksCountByNode[selectedNode.id] ?? 0) >= 2
-                          ? `Blocks ${blocksCountByNode[selectedNode.id]} issues (×1.5 boost)`
-                          : (blocksCountByNode[selectedNode.id] ?? 0) === 1
-                          ? "Blocks 1 issue"
-                          : "No downstream blocks"}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {selectedNode.hiddenAssumptions?.length > 0 && (
-                  <div className="issue-modal-section">
-                    <div className="issue-modal-sec-head">Hidden Assumptions</div>
-                    <div className="issue-modal-sub">Confirm or reject — rejected assumptions are excluded from confidence</div>
-                    {selectedNode.hiddenAssumptions.map((a, i) => {
-                      const status = getAssumptionStatus(selectedNode.id, i);
-                      return (
-                        <div key={i} className={`issue-assumption-row${status === "rejected" ? " rejected" : ""}`}>
-                          <div className="issue-assumption">"{a}"</div>
-                          <div className="issue-assumption-actions">
-                            <button
-                              className={`assumption-btn accurate${status === "accurate" ? " active" : ""}`}
-                              onClick={() => setAssumption(selectedNode.id, i, "accurate")}
-                            >✓ Accurate</button>
-                            <button
-                              className={`assumption-btn reject${status === "rejected" ? " active" : ""}`}
-                              onClick={() => setAssumption(selectedNode.id, i, "rejected")}
-                            >✕ Not accurate</button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {selectedNode.actionPlan && selectedNode.actionPlan.framework !== "Unavailable" && selectedNode.actionPlan.steps?.length > 0 && (
-                  <div className="issue-modal-section">
-                    <div className="issue-modal-sec-head">Full Action Plan</div>
-                    {selectedNode.actionPlan.steps.map((s, i) => (
-                      <div key={i} className="issue-step"><span className="issue-step-num">{i + 1}</span>{s}</div>
-                    ))}
-                    {selectedNode.actionPlan.urgencyNote && (
-                      <div className="issue-timeframe">{selectedNode.actionPlan.urgencyNote}</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </BorderGlow>
-          </div>
+        {/* GRAPH EXPLORER */}
+        {view === "graph" && focusedNodeId && (
+          <GraphExplorer
+            issues={issues}
+            edges={edges}
+            focusedNodeId={focusedNodeId}
+            nodeById={nodeById}
+            badgeFor={badgeFor}
+            blocksCountByNode={blocksCountByNode}
+            effectiveConfidence={effectiveConfidence}
+            getAssumptionStatus={getAssumptionStatus}
+            setAssumption={setAssumption}
+            onFocusNode={setFocusedNodeId}
+            onClose={() => setView("workspace")}
+          />
         )}
 
         {/* STATUSBAR */}

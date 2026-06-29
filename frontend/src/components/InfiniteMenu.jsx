@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { mat4, quat, vec2, vec3 } from 'gl-matrix';
+import { mat4, quat, vec2, vec3, vec4 } from 'gl-matrix';
 import '../styles/infinite-menu.css';
+
+const RELATIONSHIP_HUE = { BLOCKS: 5, CAUSES: 28, RELATED: 175 };
+
+function smoothstep(edge0, edge1, x) {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
 
 const discVertShaderSource = `#version 300 es
 uniform mat4 uWorldMatrix;
@@ -173,16 +180,20 @@ class Arcball {
 class Sphere3DMenu {
   TFD=1000/60;SR=2;#t=0;#dt=0;#f=0;
   cam={matrix:mat4.create(),near:.1,far:40,fov:Math.PI/4,aspect:1,pos:vec3.fromValues(0,0,3),up:vec3.fromValues(0,1,0),view:mat4.create(),proj:mat4.create()};
-  constructor(canvas,items,onActive,onMove,onInit,scale=1){
+  constructor(canvas,items,onActive,onMove,onInit,scale=1,overlayCanvas,edges){
     this.canvas=canvas;this.items=items||[];this.onActive=onActive||(() => {});this.onMove=onMove||(() => {});
-    this.scale=scale;this.cam.pos[2]=3*scale;this.moving=false;this._raf=null;this._init(onInit);
+    this.scale=scale;this.cam.pos[2]=3*scale;this.moving=false;this._raf=null;
+    this.overlayCanvas=overlayCanvas||null;this.overlayCtx=overlayCanvas?overlayCanvas.getContext('2d'):null;
+    this.edges=(edges||[]).filter(e=>e.type==='BLOCKS'||e.type==='CAUSES'||e.type==='RELATED');
+    this._init(onInit);
   }
   resize(){
     const gl=this.gl,need=resizeCvs(gl.canvas);
     if(need)gl.viewport(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight);
+    if(this.overlayCanvas)resizeCvs(this.overlayCanvas);
     this._updateProj(gl);
   }
-  run(t=0){this.#dt=Math.min(32,t-this.#t);this.#t=t;this.#f+=this.#dt/this.TFD;this._anim(this.#dt);this._draw();this._raf=requestAnimationFrame(t2=>this.run(t2));}
+  run(t=0){this.#dt=Math.min(32,t-this.#t);this.#t=t;this.#f+=this.#dt/this.TFD;this._anim(this.#dt);this._draw();this._drawConnections();this._raf=requestAnimationFrame(t2=>this.run(t2));}
   destroy(){if(this._raf)cancelAnimationFrame(this._raf);}
   _init(onInit){
     this.gl=this.canvas.getContext('webgl2',{antialias:true,alpha:false});
@@ -195,6 +206,7 @@ class Sphere3DMenu {
     const subDiv=this.items.length<=12?0:this.items.length<=42?1:2;
     const ico=new IcosahedronGeometry();ico.subdivide(subDiv).spherize(this.SR);
     this.instPos=ico.vertices.map(v=>v.position);this.instCount=Math.min(ico.vertices.length,Math.max(this.items.length,1));
+    this.idToIndex={};this.items.forEach((it,i)=>{if(it.node?.id)this.idToIndex[it.node.id]=i;});
     this._initInst();this.world=mat4.create();this._initTex();
     this.arc=new Arcball(this.canvas,dt=>this._onCtrl(dt));
     this._updateCam();this._updateProj(gl);this.resize();if(onInit)onInit(this);
@@ -234,6 +246,40 @@ class Sphere3DMenu {
     });
     gl.bindBuffer(gl.ARRAY_BUFFER,this.inst.buf);gl.bufferSubData(gl.ARRAY_BUFFER,0,this.inst.arr);gl.bindBuffer(gl.ARRAY_BUFFER,null);
     this.smoothRV=this.arc.rotationVelocity;
+    this.currentPositions=positions;
+  }
+  _tileAlpha(p){
+    const z=p[2]/(vec3.length(p)||1);
+    return smoothstep(0.5,1,z)*.9+.1;
+  }
+  _project(p){
+    const view=vec4.create(),clip=vec4.create();
+    vec4.transformMat4(view,[p[0],p[1],p[2],1],this.cam.view);
+    vec4.transformMat4(clip,view,this.cam.proj);
+    if(clip[3]<=0)return null;
+    const ndcX=clip[0]/clip[3],ndcY=clip[1]/clip[3];
+    return [(ndcX*.5+.5)*this.overlayCanvas.clientWidth,(1-(ndcY*.5+.5))*this.overlayCanvas.clientHeight];
+  }
+  _drawConnections(){
+    const ctx=this.overlayCtx;if(!ctx||!this.currentPositions)return;
+    const dpr=Math.min(2,window.devicePixelRatio);
+    ctx.save();ctx.scale(dpr,dpr);
+    ctx.clearRect(0,0,this.overlayCanvas.clientWidth,this.overlayCanvas.clientHeight);
+    for(const e of this.edges){
+      const i=this.idToIndex[e.fromNodeId],j=this.idToIndex[e.toNodeId];
+      if(i===undefined||j===undefined||i>=this.currentPositions.length||j>=this.currentPositions.length)continue;
+      const pi=this.currentPositions[i],pj=this.currentPositions[j];
+      const ai=this._tileAlpha(pi),aj=this._tileAlpha(pj),alpha=Math.min(ai,aj);
+      if(alpha<0.15)continue;
+      const a=this._project(pi),b=this._project(pj);
+      if(!a||!b)continue;
+      const hue=RELATIONSHIP_HUE[e.type]??200,isRelated=e.type==='RELATED';
+      ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);
+      ctx.setLineDash(isRelated?[4,4]:[]);
+      ctx.strokeStyle=`hsla(${hue},75%,58%,${(alpha*(isRelated?.4:.55)).toFixed(2)})`;
+      ctx.lineWidth=1.4;ctx.stroke();
+    }
+    ctx.setLineDash([]);ctx.restore();
   }
   _draw(){
     const gl=this.gl;gl.useProgram(this.prog);gl.enable(gl.CULL_FACE);gl.enable(gl.DEPTH_TEST);
@@ -269,8 +315,9 @@ class Sphere3DMenu {
   }
 }
 
-export default function InfiniteMenu({ items = [], scale = 2.8, onItemClick }) {
+export default function InfiniteMenu({ items = [], scale = 2.8, onItemClick, edges = [] }) {
   const canvasRef = useRef(null);
+  const overlayRef = useRef(null);
   const sketchRef = useRef(null);
   const [activeItem, setActiveItem] = useState(null);
   const [isMoving, setIsMoving] = useState(false);
@@ -280,13 +327,13 @@ export default function InfiniteMenu({ items = [], scale = 2.8, onItemClick }) {
     if (!canvas || !items.length) return;
     let sketch;
     try {
-      sketch = new Sphere3DMenu(canvas, items, idx => setActiveItem(items[idx % items.length]), setIsMoving, sk => sk.run(), scale);
+      sketch = new Sphere3DMenu(canvas, items, idx => setActiveItem(items[idx % items.length]), setIsMoving, sk => sk.run(), scale, overlayRef.current, edges);
       sketchRef.current = sketch;
     } catch (e) { console.error('InfiniteMenu init failed:', e); return; }
     const onResize = () => sketch.resize();
     window.addEventListener('resize', onResize);
     return () => { window.removeEventListener('resize', onResize); sketch.destroy(); };
-  }, [items, scale]);
+  }, [items, scale, edges]);
 
   const handleClick = () => {
     if (isMoving || !activeItem) return;
@@ -296,6 +343,10 @@ export default function InfiniteMenu({ items = [], scale = 2.8, onItemClick }) {
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <canvas id="infinite-grid-menu-canvas" ref={canvasRef} />
+      <canvas
+        ref={overlayRef}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+      />
       {activeItem && (
         <div onClick={handleClick} className={`action-button ${isMoving ? 'inactive' : 'active'}`}>
           <p className="action-button-icon">&#x2197;</p>

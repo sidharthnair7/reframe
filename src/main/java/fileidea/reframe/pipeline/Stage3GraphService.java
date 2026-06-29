@@ -36,7 +36,8 @@ public class Stage3GraphService {
         {
           "fromIndex": <number, 0-based index of the source issue>,
           "toIndex": <number, 0-based index of the target issue>,
-          "type": <"BLOCKS" | "CAUSES" | "RELATED">
+          "type": <"BLOCKS" | "CAUSES" | "RELATED">,
+          "reason": <one short sentence explaining why this relationship exists>
         }
         
         Rules:
@@ -73,6 +74,7 @@ public class Stage3GraphService {
                             .fromNodeId(savedNodes.get(dto.fromIndex()).getId())
                             .toNodeId(savedNodes.get(dto.toIndex()).getId())
                             .type(EdgeType.valueOf(dto.type()))
+                            .reason(dto.reason())
                             .build())
                     .toList();
         } catch (Exception e) {
@@ -80,6 +82,6 @@ public class Stage3GraphService {
         }
     }
 
-    private record EdgeDto(int fromIndex, int toIndex, String type) {}
+    private record EdgeDto(int fromIndex, int toIndex, String type, String reason) {}
 
 }

@@ -1,0 +1,44 @@
+{
+  "US": {
+    "name": "988 Suicide & Crisis Lifeline",
+    "phone": "988",
+    "text": "Text 988",
+    "url": "https://988lifeline.org"
+  },
+  "CA": {
+    "name": "Talk Suicide Canada (988 Suicide Crisis Helpline)",
+    "phone": "988",
+    "text": "Text 988",
+    "url": "https://talksuicide.ca"
+  },
+  "GB": {
+    "name": "Samaritans",
+    "phone": "116 123",
+    "url": "https://www.samaritans.org"
+  },
+  "IE": {
+    "name": "Samaritans Ireland",
+    "phone": "116 123",
+    "url": "https://www.samaritans.org/ireland"
+  },
+  "AU": {
+    "name": "Lifeline Australia",
+    "phone": "13 11 14",
+    "url": "https://www.lifeline.org.au"
+  },
+  "NZ": {
+    "name": "Need to Talk? (1737)",
+    "phone": "1737",
+    "text": "Text 1737",
+    "url": "https://1737.org.nz"
+  },
+  "IN": {
+    "name": "KIRAN Mental Health Helpline",
+    "phone": "1800-599-0019",
+    "url": "https://www.mohfw.gov.in"
+  },
+  "default": {
+    "name": "Find a crisis line in your country",
+    "url": "https://www.iasp.info/resources/Crisis_Centres/"
+  }
+}

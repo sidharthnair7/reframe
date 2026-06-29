@@ -7,5 +7,14 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    // Mirrors what nginx does in production (proxy /api to the backend, same-origin from
+    // the browser's perspective) -- keeps local dev and Docker behaving identically, and
+    // means api.js never needs to know or care what host/port the backend is actually on.
+    proxy: {
+      "/api": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+    },
   },
 })

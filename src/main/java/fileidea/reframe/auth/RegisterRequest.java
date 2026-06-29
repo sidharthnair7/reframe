@@ -15,6 +15,7 @@ public class RegisterRequest {
 
     private String firstName;
     private String lastName;
+    private String country;
     @Email(message = "Please provide a valid email address")
     @NotBlank(message = "Email is required")
     private String email;

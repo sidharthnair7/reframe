@@ -1,4 +1,9 @@
-const BASE = "http://localhost:8080/api";
+// Local dev: falls back to the relative "/api" the Vite proxy forwards to localhost:8080
+// (see vite.config.js) -- zero setup needed, same as before.
+// Netlify build: VITE_API_BASE_URL is set in Netlify's own build environment to the real
+// Render backend URL, e.g. https://reframe-backend-xyz.onrender.com/api. Vite bakes this in
+// at build time, so it has to be set there, not in a .env file that ships with the build.
+const BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 function getToken() {
   return localStorage.getItem("reframe_token");
@@ -16,15 +21,17 @@ async function request(path, options = {}) {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `HTTP ${res.status}`);
+    const error = new Error(text || `HTTP ${res.status}`);
+    error.status = res.status;
+    throw error;
   }
   return res.json();
 }
 
-export async function register({ firstName, lastName, email, password }) {
+export async function register({ firstName, lastName, email, password, country }) {
   return request("/v1/auth/register", {
     method: "POST",
-    body: JSON.stringify({ firstName, lastName, email, password }),
+    body: JSON.stringify({ firstName, lastName, email, password, country }),
   });
 }
 

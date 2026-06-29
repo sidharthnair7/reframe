@@ -5,7 +5,6 @@ target/
 !**/src/test/**/target/
 .idea/
 .env
-src/main/resources/application.properties
 node_modules/
 frontend/node_modules/
 
