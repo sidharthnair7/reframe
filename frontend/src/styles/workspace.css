@@ -90,8 +90,8 @@
 @keyframes listenDot   { 0%,100%{opacity:0.4;transform:scale(0.8);}50%{opacity:1;transform:scale(1.2);} }
 
 /* PANELS */
-.panel-left   { grid-column: 1; grid-row: 2; border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; background: rgba(0,0,0,0.82); backdrop-filter: blur(20px); }
-.panel-center { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; overflow: hidden; position: relative; background: rgba(0,0,0,0.25); }
+.panel-left   { grid-column: 1; grid-row: 2; border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; min-height: 0; background: rgba(0,0,0,0.82); backdrop-filter: blur(20px); }
+.panel-center { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; overflow: hidden; min-height: 0; position: relative; background: rgba(0,0,0,0.25); }
 .panel-right  { grid-column: 3; grid-row: 2; border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; background: rgba(0,0,0,0.82); backdrop-filter: blur(20px); }
 
 .panel-head {

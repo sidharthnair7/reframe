@@ -306,7 +306,8 @@ body {
   .status-pill.desktop-only { display:none; }
   .nav-toggle { display:block; }
   .section { padding:3.5rem 1.25rem; }
-  .hero { padding:5rem 1.25rem 2.5rem; }
+  .hero { padding:5rem 1.25rem 2.5rem; min-height:auto; }
+  .scroll-indicator { display:none; }
   .team-grid-final { grid-template-columns:1fr; }
   .features-grid, .future-grid { grid-template-columns:1fr; }
   .features-grid .feature-card:last-child, .future-grid .future-card:last-child { grid-column:auto; }

@@ -488,6 +488,31 @@ function Future() {
 }
 
 // =============================================
+// PRIVACY & MISSION
+// =============================================
+function Privacy() {
+    return (
+        <section className="section" id="privacy-section">
+            <div className="section-label reveal">Why This Exists</div>
+            <h2 className="section-title reveal">Built to help, not to harvest.</h2>
+            <div className="features-grid reveal" style={{ marginTop: "2rem" }}>
+                {[
+                    { icon: "🔒", title: "No individual tracking", desc: "Site analytics are anonymous and cookieless (Cloudflare Web Analytics) — we see aggregate visit counts, never who you are or what you typed." },
+                    { icon: "💙", title: "Crisis support, always visible", desc: "Support resources are shown to everyone by default, not gated behind an AI's guess at whether you're struggling. A missed detection would be a worse failure than an unnecessary one." },
+                    { icon: "📖", title: "Open source, MIT licensed", desc: "The full pipeline, scoring math, and prompts are public on GitHub. Nothing about how this works is hidden." },
+                ].map((f) => (
+                    <div className="feature-card" key={f.title}>
+                        <div className="feature-icon">{f.icon}</div>
+                        <div className="feature-title">{f.title}</div>
+                        <div className="feature-desc">{f.desc}</div>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+// =============================================
 // TEAM
 // =============================================
 function Team() {
@@ -541,9 +566,7 @@ function Footer() {
         <footer className="footer">
             <div className="footer-left">Reframe</div>
             <div className="footer-links">
-                {["MIT License", "Built with Claude API"].map((l) => (
-                    <a key={l} href="#">{l}</a>
-                ))}
+                <a href="https://github.com/sidharthnair7/reframe?tab=MIT-1-ov-file" target="_blank" rel="noopener noreferrer">MIT License</a>
             </div>
             <div className="footer-right">● Neural Network Active</div>
         </footer>
@@ -614,6 +637,8 @@ export default function App() {
                 <Architecture />
                 <hr className="divider" />
                 <Future />
+                <hr className="divider" />
+                <Privacy />
                 <hr className="divider" />
                 <Team />
                 <CTA onAuthOpen={openAuth} />
