@@ -179,15 +179,25 @@
 }
 
 @media (max-width: 900px) {
+  .ge-overlay {
+    overflow-y: auto;
+  }
+  .ge-close {
+    margin: 0.85rem 1rem 0.25rem;
+  }
   .ge-layout {
     flex-direction: column;
+    height: auto;
+    padding: 0.5rem 1rem 1.5rem;
   }
   .ge-graph-pane {
-    flex: 1 1 50%;
+    flex: none;
+    min-height: 320px;
   }
   .ge-detail-pane {
-    flex: 1 1 50%;
+    flex: none;
     max-width: none;
     min-width: 0;
+    overflow-y: visible;
   }
 }

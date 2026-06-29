@@ -398,6 +398,17 @@ export default function Workspace() {
   const [focusedNodeId, setFocusedNodeId] = useState(null);
   const [assumptionStatus, setAssumptionStatus] = useState({}); // `${nodeId}-${index}` -> "accurate" | "rejected"
 
+  // Sphere scale is fixed WebGL geometry, not CSS -- on a narrow phone viewport the desktop
+  // scale renders too large relative to the screen and the expand button (fixed em-offset
+  // from the bottom of the panel) lands on top of it instead of below it. Shrink only below
+  // the same 900px breakpoint used everywhere else in this file; desktop is untouched.
+  const [sphereScale, setSphereScale] = useState(() => (window.innerWidth <= 900 ? 1.7 : 2.8));
+  useEffect(() => {
+    const onResize = () => setSphereScale(window.innerWidth <= 900 ? 1.7 : 2.8);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   // Sphere drag-to-explore hint — shown once, ever, the first time a populated sphere renders
   const [showDragHint, setShowDragHint] = useState(() => !localStorage.getItem("reframe_seen_drag_hint"));
   const dismissDragHint = useCallback(() => {
@@ -631,7 +642,7 @@ export default function Workspace() {
                   <div className="drag-hint-text">Drag to explore your issues</div>
                 </div>
               )}
-              <InfiniteMenu items={menuItems} edges={edges} scale={2.8} onItemClick={item => { setFocusedNodeId(item.node.id); setView("graph"); }} />
+              <InfiniteMenu items={menuItems} edges={edges} scale={sphereScale} onItemClick={item => { setFocusedNodeId(item.node.id); setView("graph"); }} />
             </div>
           ) : (
             <div className="center-empty">
