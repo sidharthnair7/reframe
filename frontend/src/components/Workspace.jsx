@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useVoice } from "../hooks/useVoice";
 import { textOverlap } from "../utils/textOverlap";
-import { analyzeBrainDump, voiceExchange, updateAssumptions } from "../api";
+import { analyzeBrainDump, voiceExchange, updateAssumptions, speakText } from "../api";
 import InfiniteMenu from "./InfiniteMenu";
 import MemoryGarden from "./MemoryGarden";
 import GraphExplorer from "./GraphExplorer";
@@ -248,14 +248,7 @@ export default function Workspace() {
   const playTTS = useCallback(async (text) => {
     setAiSpeaking(true); aiSpeakingRef.current = true;
     try {
-      const token = localStorage.getItem("reframe_token");
-      const res = await fetch("http://localhost:8080/api/voice/speak", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text }),
-      });
-      if (!res.ok) return;
-      const blob = await res.blob();
+      const blob = await speakText(text);
       const url = URL.createObjectURL(blob);
       await new Promise(resolve => {
         const audio = new Audio(url);

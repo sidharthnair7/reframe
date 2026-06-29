@@ -53,6 +53,26 @@ export async function analyzeBrainDump({ rawText, sessionId }) {
   });
 }
 
+// Returns audio bytes, not JSON -- can't go through request(), which always calls res.json().
+export async function speakText(text) {
+  const token = getToken();
+  const res = await fetch(`${BASE}/voice/speak`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) {
+    const errorText = await res.text();
+    const error = new Error(errorText || `HTTP ${res.status}`);
+    error.status = res.status;
+    throw error;
+  }
+  return res.blob();
+}
+
 export async function voiceExchange({ transcript, history, speakerName }) {
   return request("/voice/exchange", {
     method: "POST",
