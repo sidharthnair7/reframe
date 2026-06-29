@@ -497,8 +497,8 @@ function Team() {
             <h2 className="section-title reveal">Two builders. Zero handoff gaps.</h2>
             <div className="team-grid-final reveal" style={{ marginTop: "2rem" }}>
                 {[
-                    { initials: "SN", name: "Sidharth Nair", role: "Backend & AI Lead", bio: "Spring Boot · Claude API prompt chains · MongoDB Atlas Vector Search · Bayesian scoring engine" },
-                    { initials: "BB", name: "Basudev Biju", role: "Frontend & Design Lead", bio: "React · D3.js graph visualization · WebGL Galaxy · Design system · This landing page" },
+                    { initials: "SN", name: "Sidharth Nair", role: "Full-Stack & AI Lead", bio: "Spring Boot · Claude API prompt chains · MongoDB Atlas Vector Search · Bayesian scoring engine · React · Hand-rolled WebGL/SVG graph visualization" },
+                    { initials: "BB", name: "Basudev Biju", role: "Frontend & Design Lead", bio: "WebGL Galaxy background · Design system · This landing page" },
                 ].map((m) => (
                     <div className="team-card-final" key={m.initials}>
                         <div className="team-avatar">{m.initials}</div>
