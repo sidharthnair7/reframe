@@ -30,6 +30,14 @@ public class User implements UserDetails {
     private String displayName;
     private String country;
 
+    // Email verification. Boolean (not primitive) on purpose: users created before this
+    // feature existed have no such field in Mongo, so they deserialize to null -- which we
+    // treat as "grandfathered / verified" so we never lock out existing accounts. New
+    // registrations explicitly set this to false until they click the link.
+    private Boolean emailVerified;
+    private String verificationToken;
+    private java.time.Instant verificationTokenExpiry;
+
     @Builder.Default
     private Role role = Role.USER;
 

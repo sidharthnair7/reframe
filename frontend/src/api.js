@@ -35,10 +35,24 @@ export async function register({ firstName, lastName, email, password, country }
   });
 }
 
+export async function googleLogin(credential) {
+  return request("/v1/auth/google", {
+    method: "POST",
+    body: JSON.stringify({ credential }),
+  });
+}
+
 export async function login({ email, password }) {
   return request("/v1/auth/authenticate", {
     method: "POST",
     body: JSON.stringify({ email, password }),
+  });
+}
+
+export async function resendVerification(email) {
+  return request("/v1/auth/resend-verification", {
+    method: "POST",
+    body: JSON.stringify({ email }),
   });
 }
 

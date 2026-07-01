@@ -134,6 +134,44 @@ html, body, #root { width: 100%; min-height: 100%; background: var(--void); colo
   border-radius: 8px; font-family: var(--mono); font-size: 0.68rem; color: #f87171; line-height: 1.5;
 }
 
+.auth-notice {
+  margin-top: 0.75rem; padding: 0.7rem 0.9rem;
+  background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.22);
+  border-radius: 8px; font-family: var(--mono); font-size: 0.68rem; color: #34d399; line-height: 1.5;
+}
+
+.google-signin {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+.google-signin-divider {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.google-signin-divider::before,
+.google-signin-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.google-signin-btn {
+  display: flex;
+  justify-content: center;
+  min-height: 40px;
+  color-scheme: light;
+}
+
 .auth-footer {
   margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border);
   font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.06em;

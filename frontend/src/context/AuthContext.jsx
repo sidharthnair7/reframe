@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { login as apiLogin, register as apiRegister, getProfile } from "../api";
+import { login as apiLogin, register as apiRegister, googleLogin as apiGoogleLogin, getProfile } from "../api";
 
 const AuthContext = createContext(null);
 
@@ -35,8 +35,14 @@ export function AuthProvider({ children }) {
     return profile;
   }, [saveToken]);
 
+  // Registration no longer logs the user in -- the account must verify its email first.
+  // Returns the backend's { message } so the UI can tell the user to check their inbox.
   const register = useCallback(async (fields) => {
-    const data = await apiRegister(fields);
+    return apiRegister(fields);
+  }, []);
+
+  const loginWithGoogle = useCallback(async (credential) => {
+    const data = await apiGoogleLogin(credential);
     saveToken(data.token);
     const profile = await getProfile();
     setUser(profile);
@@ -50,7 +56,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ token, user, login, register, logout, isAuthed: !!token, authLoading }}>
+    <AuthContext.Provider value={{ token, user, login, register, loginWithGoogle, logout, isAuthed: !!token, authLoading }}>
       {children}
     </AuthContext.Provider>
   );

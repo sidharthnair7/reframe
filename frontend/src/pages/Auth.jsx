@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { resendVerification } from "../api";
+import GoogleSignInButton from "../components/GoogleSignInButton";
 import "../styles/auth.css";
 
 function EyeIcon({ visible }) {
@@ -23,29 +25,105 @@ export default function Auth({ onClose, initialMode = "login" }) {
   const [error, setError]     = useState("");
   const [form, setForm]       = useState({ firstName: "", lastName: "", email: "", password: "", country: "" });
   const [showPassword, setShowPassword] = useState(false);
+  // After a successful registration we swap the form for a "check your inbox" screen.
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [notice, setNotice] = useState("");
 
-  const { login, register } = useAuth();
+  const { login, register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+
+  const handleGoogle = async (credential) => {
+    setError("");
+    setNotice("");
+    setLoading(true);
+    try {
+      await loginWithGoogle(credential);
+      navigate("/workspace");
+    } catch (err) {
+      setError(err.message || "Google sign-in failed. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Landing back here from the email link (?verified=1|0) — show the outcome up top.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get("verified");
+    if (v === "1") { setMode("login"); setNotice("Email verified — you can sign in now."); }
+    else if (v === "0") { setError("That verification link is invalid or has expired. Request a new one below."); }
+    if (v !== null) {
+      // Clean the query string so a refresh doesn't re-trigger the banner.
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+    setNotice("");
     setLoading(true);
     try {
       if (mode === "login") {
         await login({ email: form.email, password: form.password });
+        navigate("/workspace");
       } else {
-        await register(form);
+        const res = await register(form);
+        // Registration returns a message, not a token — surface the verify-your-email screen.
+        setPendingEmail(form.email);
+        setNotice(res?.message || "");
       }
-      navigate("/workspace");
     } catch (err) {
       setError(err.message || "Something went wrong. Try again.");
     } finally {
       setLoading(false);
     }
   };
+
+  const resend = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      await resendVerification(pendingEmail);
+      setNotice("If that email still needs verifying, a new link is on its way.");
+    } catch {
+      setNotice("If that email still needs verifying, a new link is on its way.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (pendingEmail) {
+    return (
+      <div className="auth-card">
+        {onClose && (
+          <button className="auth-close" onClick={onClose} aria-label="Close">✕</button>
+        )}
+        <div className="auth-logo">
+          <div className="auth-logo-mark">R</div>
+          <div className="auth-logo-name">Reframe<span> /</span></div>
+        </div>
+        <h1 className="auth-heading">Check your inbox.</h1>
+        <p className="auth-sub">
+          {notice || `We sent a verification link to ${pendingEmail}. Click it to activate your account, then sign in.`}
+        </p>
+        <button className="auth-btn" type="button" onClick={resend} disabled={loading}>
+          {loading ? "Working…" : "Resend verification email"}
+        </button>
+        <div className="auth-footer">
+          <button
+            type="button"
+            className="auth-tab"
+            onClick={() => { setPendingEmail(""); setMode("login"); setNotice(""); setError(""); }}
+          >
+            Back to sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-card">
@@ -137,12 +215,15 @@ export default function Auth({ onClose, initialMode = "login" }) {
           </div>
         </div>
 
+        {notice && <div className="auth-notice">{notice}</div>}
         {error && <div className="auth-error">{error}</div>}
 
         <button className="auth-btn" type="submit" disabled={loading}>
           {loading ? "Working…" : mode === "login" ? "Sign In →" : "Create Account →"}
         </button>
       </form>
+
+      <GoogleSignInButton onCredential={handleGoogle} onError={setError} />
 
       <div className="auth-footer">
         By continuing you agree to our terms.

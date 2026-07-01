@@ -22,7 +22,7 @@ public class BrainDumpController {
     private final UsageLimitService usageLimitService;
 
     @PostMapping("/analyze")
-    public ResponseEntity<?> analyze(@RequestBody BrainDumpRequest request,
+    public ResponseEntity<?> analyze(@jakarta.validation.Valid @RequestBody BrainDumpRequest request,
                                                      @AuthenticationPrincipal UserDetails userDetails){
         String userId= userDetails.getUsername();
         try {

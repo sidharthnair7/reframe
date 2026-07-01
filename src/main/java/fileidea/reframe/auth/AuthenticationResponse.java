@@ -12,4 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class AuthenticationResponse {
     private String token;
+    // Set (with a null token) when registration succeeds but the account still needs
+    // email verification before it can sign in.
+    private String message;
 }
