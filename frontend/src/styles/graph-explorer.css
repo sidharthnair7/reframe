@@ -39,8 +39,8 @@
   flex-shrink: 0;
 }
 .ge-close:hover {
-  background: rgba(255,255,255,0.12);
-  border-color: var(--border-bright, rgba(255,255,255,0.22));
+  background: rgba(124,160,240,0.12);
+  border-color: var(--border-active, rgba(124,160,240,0.42));
 }
 
 .ge-layout {
@@ -84,7 +84,9 @@
   filter: brightness(1.25);
 }
 .ge-node.focused circle {
-  filter: drop-shadow(0 0 10px currentColor);
+  filter: drop-shadow(0 0 12px currentColor);
+  stroke: var(--aurora-1);
+  stroke-width: 2.5;
 }
 
 .ge-node-label {
@@ -156,7 +158,7 @@
   transition: color 150ms ease;
 }
 .ge-collapsible-head:hover {
-  color: var(--text-primary);
+  color: var(--accent);
 }
 
 .ge-collapsible-chevron {

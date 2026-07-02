@@ -196,7 +196,7 @@ class Sphere3DMenu {
   run(t=0){this.#dt=Math.min(32,t-this.#t);this.#t=t;this.#f+=this.#dt/this.TFD;this._anim(this.#dt);this._draw();this._drawConnections();this._raf=requestAnimationFrame(t2=>this.run(t2));}
   destroy(){if(this._raf)cancelAnimationFrame(this._raf);}
   _init(onInit){
-    this.gl=this.canvas.getContext('webgl2',{antialias:true,alpha:false});
+    this.gl=this.canvas.getContext('webgl2',{antialias:true,alpha:true,premultipliedAlpha:false});
     const gl=this.gl;if(!gl)throw new Error('WebGL2 required');
     this.prog=mkProgram(gl,[discVertShaderSource,discFragShaderSource],{aModelPosition:0,aModelNormal:1,aModelUvs:2,aInstanceMatrix:3});
     const loc=n=>gl.getAttribLocation(this.prog,n),uloc=n=>gl.getUniformLocation(this.prog,n);
