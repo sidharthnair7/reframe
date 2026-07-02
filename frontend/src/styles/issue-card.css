@@ -1,6 +1,6 @@
 .ic-overlay {
   position: fixed; inset: 0; z-index: 100;
-  background: rgba(0,0,0,0.75);
+  background: rgba(6,8,14,0.75);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;

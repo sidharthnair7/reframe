@@ -14,7 +14,7 @@ function GalaxyBackground() {
         // Skip the WebGL canvas entirely for reduced-motion preferences, and for a
         // continuously-animating full-screen shader, that's the right default to respect.
         if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-            container.style.background = "radial-gradient(circle at 50% 30%, rgba(129,140,248,0.06), #000 70%)";
+            container.style.background = "radial-gradient(120% 90% at 50% 12%, rgba(124,160,240,0.14), rgba(178,146,245,0.06) 45%, #0A0D14 78%)";
             return;
         }
         const canvas = document.createElement("canvas");
@@ -31,42 +31,50 @@ function GalaxyBackground() {
       attribute vec2 uv; attribute vec2 position; varying vec2 vUv;
       void main() { vUv = uv; gl_Position = vec4(position, 0, 1); }
     `;
+        // Aurora field: slow domain-warped fbm noise in the signature mint->blue->violet palette
+        // over a deep-ink base. Calm and drifting -- reads as "clarity emerging from noise,"
+        // deliberately not a busy starfield. Hand-rolled GLSL, no libraries.
         const fsSrc = `
       precision highp float;
-      uniform float uTime; uniform vec3 uResolution; uniform vec2 uFocal; uniform vec2 uRotation;
-      uniform float uStarSpeed; uniform float uDensity; uniform float uHueShift; uniform float uSpeed;
-      uniform vec2 uMouse; uniform float uGlowIntensity; uniform float uSaturation;
-      uniform bool uMouseRepulsion; uniform float uTwinkleIntensity; uniform float uRotationSpeed;
-      uniform float uRepulsionStrength; uniform float uMouseActiveFactor;
+      uniform float uTime; uniform vec3 uResolution;
+      uniform vec2 uMouse; uniform float uMouseActiveFactor;
       varying vec2 vUv;
-      #define NUM_LAYER 4.0
-      #define MAT45 mat2(0.7071,-0.7071,0.7071,0.7071)
-      float Hash21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
-      float tri(float x){return abs(fract(x)*2.-1.);}
-      float tris(float x){float t=fract(x);return 1.-smoothstep(0.,1.,abs(2.*t-1.));}
-      float trisn(float x){float t=fract(x);return 2.*(1.-smoothstep(0.,1.,abs(2.*t-1.)))-1.;}
-      vec3 hsv2rgb(vec3 c){vec4 K=vec4(1.,2./3.,1./3.,3.);vec3 p=abs(fract(c.xxx+K.xyz)*6.-K.www);return c.z*mix(K.xxx,clamp(p-K.xxx,0.,1.),c.y);}
-      float Star(vec2 uv,float flare){float d=length(uv);float m=(.05*uGlowIntensity)/d;float rays=smoothstep(0.,1.,1.-abs(uv.x*uv.y*1000.));m+=rays*flare*uGlowIntensity;uv*=MAT45;rays=smoothstep(0.,1.,1.-abs(uv.x*uv.y*1000.));m+=rays*.3*flare*uGlowIntensity;m*=smoothstep(1.,.2,d);return m;}
-      vec3 StarLayer(vec2 uv){vec3 col=vec3(0.);vec2 gv=fract(uv)-.5;vec2 id=floor(uv);
-      for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){
-        vec2 si=id+vec2(float(x),float(y));float seed=Hash21(si);float size=fract(seed*345.32);
-        float glossLocal=tri(uStarSpeed/(3.*seed+1.));float flareSize=smoothstep(.9,1.,size)*glossLocal;
-        float red=smoothstep(.2,1.,Hash21(si+1.))+.2;float blu=smoothstep(.2,1.,Hash21(si+3.))+.2;float grn=min(red,blu)*seed;
-        vec3 base=vec3(red,grn,blu);float hue=atan(base.g-base.r,base.b-base.r)/(2.*3.14159)+.5;hue=fract(hue+uHueShift/360.);
-        float sat=length(base-vec3(dot(base,vec3(.299,.587,.114))))*uSaturation;float val=max(max(base.r,base.g),base.b);base=hsv2rgb(vec3(hue,sat,val));
-        vec2 pad=vec2(tris(seed*34.+uTime*uSpeed/10.),tris(seed*38.+uTime*uSpeed/30.))-.5;
-        float star=Star(gv-vec2(float(x),float(y))-pad,flareSize);float twinkle=trisn(uTime*uSpeed+seed*6.2831)*.5+1.;twinkle=mix(1.,twinkle,uTwinkleIntensity);star*=twinkle;
-        col+=star*size*base;
-      }return col;}
+      vec2 hash2(vec2 p){ p=vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))); return -1.+2.*fract(sin(p)*43758.5453123); }
+      float noise(vec2 p){
+        vec2 i=floor(p); vec2 f=fract(p); vec2 u=f*f*(3.-2.*f);
+        return mix(mix(dot(hash2(i+vec2(0.,0.)),f-vec2(0.,0.)), dot(hash2(i+vec2(1.,0.)),f-vec2(1.,0.)),u.x),
+                   mix(dot(hash2(i+vec2(0.,1.)),f-vec2(0.,1.)), dot(hash2(i+vec2(1.,1.)),f-vec2(1.,1.)),u.x), u.y);
+      }
+      float fbm(vec2 p){ float v=0.,a=0.5; for(int i=0;i<5;i++){ v+=a*noise(p); p*=2.02; a*=0.5; } return v; }
       void main(){
-        vec2 focalPx=uFocal*uResolution.xy;vec2 uv=(vUv*uResolution.xy-focalPx)/uResolution.y;
-        if(uMouseRepulsion){vec2 mp=(uMouse*uResolution.xy-focalPx)/uResolution.y;float md=length(uv-mp);uv+=normalize(uv-mp)*(uRepulsionStrength/(md+.1))*.05*uMouseActiveFactor;}
-        else uv+=(uMouse-.5)*.1*uMouseActiveFactor;
-        uv=mat2(cos(uTime*uRotationSpeed),-sin(uTime*uRotationSpeed),sin(uTime*uRotationSpeed),cos(uTime*uRotationSpeed))*uv;
-        uv=mat2(uRotation.x,-uRotation.y,uRotation.y,uRotation.x)*uv;
-        vec3 col=vec3(0.);
-        for(float i=0.;i<1.;i+=1./NUM_LAYER){float depth=fract(i+uStarSpeed*uSpeed);float scale=mix(20.*uDensity,.5*uDensity,depth);float fade=depth*smoothstep(1.,.9,depth);col+=StarLayer(uv*scale+i*453.32)*fade;}
-        float alpha=length(col);alpha=smoothstep(0.,.3,alpha);alpha=min(alpha,1.);gl_FragColor=vec4(col,alpha);
+        vec2 uv=vUv; float aspect=uResolution.x/uResolution.y;
+        vec2 asp=vec2(aspect,1.0);
+        // Cursor influence: proximity falls off with distance (aspect-corrected).
+        vec2 duv=(uv-uMouse)*asp;
+        float md=length(duv);
+        float prox=exp(-md*2.6)*uMouseActiveFactor; // 1 near cursor -> 0 far away
+        vec2 p=uv; p.x*=aspect;
+        p+=(uMouse-0.5)*0.08*uMouseActiveFactor;    // whole-field parallax
+        p+=duv*prox*0.14;                            // local pull toward the cursor
+        float t=uTime*0.03;
+        vec2 q=vec2(fbm(p*1.4+vec2(0.0,t)), fbm(p*1.4+vec2(5.2,-t)));
+        float warp=1.6+prox*1.6;                     // cursor stirs the noise nearby
+        float n=fbm(p*1.9+q*warp+vec2(t*0.5,t*0.3));
+        n=n*0.5+0.5;
+        vec3 c1=vec3(0.353,0.784,0.918); // cyan   #5AC8EA
+        vec3 c2=vec3(0.486,0.612,0.941); // blue   #7C9CF0
+        vec3 c3=vec3(0.663,0.549,0.961); // violet #A98CF5
+        // Blue-dominant: cyan only peeks at the brightest wisps, violet at the crests.
+        vec3 aurora=mix(c2,c1,smoothstep(0.55,0.85,n));
+        aurora=mix(aurora,c3,smoothstep(0.6,0.95,n));
+        vec3 base=vec3(0.039,0.051,0.078); // ink #0A0D14
+        float glow=pow(smoothstep(0.0,0.85,n),1.85)*0.4;
+        // Concentrate light toward the upper-center; keep edges/bottom dark so text stays legible.
+        float vig=smoothstep(1.15,0.15,length((uv-vec2(0.5,0.38))*vec2(aspect*0.9,1.4)));
+        glow*=vig;
+        float bloom=prox*0.5;                        // soft light blooms under the cursor
+        vec3 col=base+aurora*(glow+bloom);
+        gl_FragColor=vec4(col,1.0);
       }
     `;
 
@@ -141,9 +149,9 @@ function GalaxyBackground() {
             rafId = requestAnimationFrame(render);
             const dt = lastTs ? Math.min((ts - lastTs) / 1000, 0.05) : 0;
             lastTs = ts; t += dt;
-            sm.x += (mouse.x - sm.x) * 0.04;
-            sm.y += (mouse.y - sm.y) * 0.04;
-            sma += (ma - sma) * 0.03;
+            sm.x += (mouse.x - sm.x) * 0.09;
+            sm.y += (mouse.y - sm.y) * 0.09;
+            sma += (ma - sma) * 0.06;
             gl.useProgram(prog);
             gl.uniform1f(u.uTime, t);
             gl.uniform1f(u.uStarSpeed, t * 0.04);
@@ -309,23 +317,7 @@ function Nav({ onScrollTo, onAuthOpen }) {
 // =============================================
 function Hero({ onAuthOpen }) {
     const cardRef = useRef(null);
-    const [savings, setSavings] = useState("0.0 hrs");
     useTilt(cardRef, 8);
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            const target = 2.4;
-            let cur = 0;
-            const step = () => {
-                cur += (target - cur) * 0.1;
-                if (cur >= target - 0.01) { setSavings(target.toFixed(1) + " hrs"); return; }
-                setSavings(cur.toFixed(1) + " hrs");
-                requestAnimationFrame(step);
-            };
-            step();
-        }, 1000);
-        return () => clearTimeout(timer);
-    }, []);
 
     return (
         <section className="hero" id="hero">
@@ -364,8 +356,8 @@ function Hero({ onAuthOpen }) {
                             ))}
                         </div>
                         <div className="card-savings">
-                            <span className="savings-label">Avg Time Saved</span>
-                            <span className="savings-value">{savings}</span>
+                            <span className="savings-label">Output</span>
+                            <span className="savings-value">One clear next move</span>
                         </div>
                     </div>
                 </div>
@@ -388,9 +380,9 @@ function ProblemSolution() {
             <div className="problem-solution-grid">
                 <div className="ps-card problem reveal">
                     <div className="ps-card-header">⚠ The Problem</div>
-                    <div className="ps-stat">87%</div>
+                    <div className="ps-stat">∞</div>
                     <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "1rem" }}>
-                        of students report feeling overwhelmed by competing priorities, with no structured way to decide what to do first.
+                        The mental load doesn't come with a priority order. Everything feels urgent at once, so nothing actually gets done.
                     </p>
                     <ul className="ps-list">
                         <li>Cognitive overload leads to decision paralysis — not laziness</li>
@@ -400,9 +392,9 @@ function ProblemSolution() {
                 </div>
                 <div className="ps-card solution reveal">
                     <div className="ps-card-header">✓ The Solution</div>
-                    <div className="ps-stat">&lt; 2s</div>
+                    <div className="ps-stat">5 stages</div>
                     <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "1rem" }}>
-                        From brain dump to prioritized action plan in under 2 seconds. Five AI stages that justify why each decision matters.
+                        From brain dump to a prioritized action plan — five reasoning stages that each justify why a decision matters, not a black-box answer.
                     </p>
                     <ul className="ps-list">
                         <li>Claude API classifies urgency, cognitive weight, and actionability</li>
